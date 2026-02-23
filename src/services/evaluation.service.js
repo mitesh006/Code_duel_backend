@@ -365,6 +365,30 @@ const getBulkMemberDailyResults = async (memberIds, daysBack = 7) => {
 };
 
 /**
+ * Get all daily results for multiple members in a single bulk query.
+ * Returns aggregated stats (totalDays, completedDays) grouped by memberId,
+ * used by the leaderboard which needs full-history counts rather than a
+ * calendar window.
+ * @param {string[]} memberIds - Array of challenge member IDs
+ * @returns {Object} Map of memberId -> { totalDays, completedDays }
+ */
+const getBulkAllMemberResults = async (memberIds) => {
+  if (!memberIds || memberIds.length === 0) return {};
+
+  const results = await prisma.dailyResult.findMany({
+    where: { memberId: { in: memberIds } },
+    select: { memberId: true, completed: true },
+  });
+
+  return results.reduce((acc, result) => {
+    if (!acc[result.memberId]) acc[result.memberId] = { totalDays: 0, completedDays: 0 };
+    acc[result.memberId].totalDays += 1;
+    if (result.completed) acc[result.memberId].completedDays += 1;
+    return acc;
+  }, {});
+};
+
+/**
  * Get today's daily result for multiple members in a single bulk query.
  * Results are returned as a map keyed by memberId for O(1) lookup.
  * @param {string[]} memberIds - Array of challenge member IDs
@@ -394,8 +418,7 @@ const getBulkTodayResults = async (memberIds) => {
  * @returns {Object|null} Today's daily result or null
  */
 const getTodayStatus = async (memberId) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = normaliseToMidnight();
 
   return await prisma.dailyResult.findUnique({
     where: {
@@ -416,6 +439,7 @@ module.exports = {
   evaluateMember,
   getMemberDailyResults,
   getBulkMemberDailyResults,
+  getBulkAllMemberResults,
   getBulkTodayResults,
   getTodayStatus,
 };

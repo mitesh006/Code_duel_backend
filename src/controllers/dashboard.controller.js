@@ -182,30 +182,30 @@ const getChallengeLeaderboard = asyncHandler(async (req, res) => {
     ],
   });
 
-  // Get total completed days for each member
-  const leaderboard = await Promise.all(
-    members.map(async (member) => {
-      const results = await prisma.dailyResult.findMany({
-        where: { memberId: member.id },
-      });
+  if (members.length === 0) {
+    return res.status(200).json({ success: true, data: [] });
+  }
 
-      const totalDays = results.length;
-      const completedDays = results.filter((r) => r.completed).length;
-      const completionRate =
-        totalDays > 0 ? (completedDays / totalDays) * 100 : 0;
+  const memberIds = members.map((m) => m.id);
 
-      return {
-        username: member.user.username,
-        leetcodeUsername: member.user.leetcodeUsername,
-        currentStreak: member.currentStreak,
-        longestStreak: member.longestStreak,
-        totalPenalties: member.totalPenalties,
-        completedDays,
-        totalDays,
-        completionRate: completionRate.toFixed(2),
-      };
-    })
-  );
+  // Delegate bulk fetching to the service layer — one query for all members
+  const statsByMember = await evaluationService.getBulkAllMemberResults(memberIds);
+
+  const leaderboard = members.map((member) => {
+    const { totalDays = 0, completedDays = 0 } = statsByMember[member.id] || {};
+    const completionRate = totalDays > 0 ? (completedDays / totalDays) * 100 : 0;
+
+    return {
+      username: member.user.username,
+      leetcodeUsername: member.user.leetcodeUsername,
+      currentStreak: member.currentStreak,
+      longestStreak: member.longestStreak,
+      totalPenalties: member.totalPenalties,
+      completedDays,
+      totalDays,
+      completionRate: completionRate.toFixed(2),
+    };
+  });
 
   res.status(200).json({
     success: true,
