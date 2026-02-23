@@ -64,12 +64,14 @@ const createApp = () => {
     });
   });
 
+
+
+
   // 404 handler
   app.use(notFound);
 
   // Global error handler
   app.use(errorHandler);
-
   return app;
 };
 
