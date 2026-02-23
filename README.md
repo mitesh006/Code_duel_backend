@@ -169,10 +169,6 @@ The server will start on `http://localhost:3000` (or the port specified in `.env
 
 - Penalty transaction history
 
-### LeetCodeSession
-
-- Encrypted session storage for LeetCode API
-
 ## ⚙️ Configuration
 
 ### Cron Jobs
@@ -247,7 +243,6 @@ Uses Winston for structured logging:
 
 - LeetCode may rate limit requests
 - Consider adding delays between requests
-- Store session data for authenticated requests
 
 ### Cron Jobs Not Running
 

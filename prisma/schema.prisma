@@ -22,7 +22,6 @@ model User {
   // Relations
   ownedChallenges   Challenge[]        @relation("ChallengeOwner")
   memberships       ChallengeMember[]
-  leetcodeSessions  LeetCodeSession[]
   
   @@map("users")
 }
@@ -119,24 +118,6 @@ model PenaltyLedger {
   @@index([memberId])
   @@index([date])
   @@map("penalty_ledger")
-}
-
-model LeetCodeSession {
-  id                String           @id @default(uuid())
-  userId            String
-  sessionData       String           // Encrypted session/cookie data
-  csrfToken         String?          // Encrypted CSRF token
-  isActive          Boolean          @default(true)
-  lastUsedAt        DateTime         @default(now())
-  expiresAt         DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  // Relations
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@map("leetcode_sessions")
 }
 
 model ProblemMetadata {

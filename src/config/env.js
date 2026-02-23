@@ -21,6 +21,14 @@ const config = {
   // LeetCode API Configuration
   leetcodeGraphqlUrl:
     process.env.LEETCODE_GRAPHQL_URL || "https://leetcode.com/graphql",
+  leetcodeSubmissionFetchLimit: (() => {
+    const parsed = parseInt(process.env.LEETCODE_SUBMISSION_FETCH_LIMIT, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+
+    return 100;
+  })(),
 
   // Cron Configuration
   cronEnabled: process.env.CRON_ENABLED === "true",

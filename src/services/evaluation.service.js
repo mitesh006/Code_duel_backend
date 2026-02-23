@@ -117,16 +117,12 @@ const evaluateMember = async (challenge, member, evaluationDate) => {
     return;
   }
 
-  // Fetch LeetCode session (if stored)
-  const sessionData = await leetcodeService.getUserSession(user.id);
-
   // Fetch submissions for the date
   let submissions;
   try {
     submissions = await leetcodeService.fetchSubmissionsForDate(
       user.leetcodeUsername,
-      evaluationDate,
-      sessionData
+      evaluationDate
     );
   } catch (error) {
     logger.error(
@@ -155,8 +151,7 @@ const evaluateMember = async (challenge, member, evaluationDate) => {
   // Enrich submissions with metadata (difficulty, etc.)
   const enrichedSubmissions =
     await leetcodeService.enrichSubmissionsWithMetadata(
-      submissions,
-      sessionData
+      submissions
     );
 
   // Filter by difficulty if specified

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "LeetCode Daily Challenge Tracker API",
-    "description": "Complete API collection for testing the LeetCode Daily Challenge Tracker backend\n\n⚠️ TESTING FLOW:\n1. Start with Health Check endpoints (no auth required)\n2. Register a new user or Login (token auto-saves)\n3. All other endpoints require the JWT token from step 2\n4. Store LeetCode session before testing challenge evaluations\n5. Create and join challenges\n6. View dashboard and progress\n\n🔑 The JWT token is automatically saved to {{jwt_token}} variable after login/register",
+    "description": "Complete API collection for testing the LeetCode Daily Challenge Tracker backend\n\n⚠️ TESTING FLOW:\n1. Start with Health Check endpoints (no auth required)\n2. Register a new user or Login (token auto-saves)\n3. All other endpoints require the JWT token from step 2\n4. Create and join challenges\n5. View dashboard and progress\n\n🔑 The JWT token is automatically saved to {{jwt_token}} variable after login/register",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "1.0.0"
   },
@@ -569,84 +569,6 @@
     {
       "name": "💻 LeetCode Integration",
       "item": [
-        {
-          "name": "Store LeetCode Session",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{jwt_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"cookie\": \"LEETCODE_SESSION=your_leetcode_session_cookie_here\",\n  \"csrfToken\": \"your_csrf_token_here\",\n  \"expiresAt\": \"2026-02-06T00:00:00.000Z\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/api/leetcode/session",
-              "host": ["{{base_url}}"],
-              "path": ["api", "leetcode", "session"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Session Status",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{jwt_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/leetcode/session",
-              "host": ["{{base_url}}"],
-              "path": ["api", "leetcode", "session"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Invalidate Session",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{jwt_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/leetcode/session",
-              "host": ["{{base_url}}"],
-              "path": ["api", "leetcode", "session"]
-            }
-          },
-          "response": []
-        },
         {
           "name": "Get LeetCode Profile",
           "request": {
