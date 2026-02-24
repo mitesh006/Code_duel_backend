@@ -36,6 +36,26 @@ const validateLogin = [
 ];
 
 /**
+ * Validation middleware for forgot password
+ */
+const validateForgotPassword = [
+  body("email")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email is required"),
+];
+
+/**
+ * Validation middleware for reset password
+ */
+const validateResetPassword = [
+  body("token").notEmpty().withMessage("Reset token is required"),
+  body("newPassword")
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+];
+
+/**
  * Register a new user
  * POST /api/auth/register
  */
@@ -125,6 +145,52 @@ const updateProfile = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ */
+const forgotPassword = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: errors.array(),
+    });
+  }
+
+  const { email } = req.body;
+  const result = await authService.forgotPassword(email);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+  });
+});
+
+/**
+ * Reset password using token
+ * POST /api/auth/reset-password
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: errors.array(),
+    });
+  }
+
+  const { token, newPassword } = req.body;
+  const result = await authService.resetPassword(token, newPassword);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+  });
+});
+
 module.exports = {
   register,
   login,
@@ -132,4 +198,8 @@ module.exports = {
   updateProfile,
   validateRegister,
   validateLogin,
+  forgotPassword,
+  resetPassword,
+  validateForgotPassword,
+  validateResetPassword,
 };
