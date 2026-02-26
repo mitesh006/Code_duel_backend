@@ -2,6 +2,8 @@ const createApp = require("./app");
 const { config, validateConfig } = require("./config/env");
 const { disconnectPrisma } = require("./config/prisma");
 const cronManager = require("./config/cron");
+const { createEvaluationWorker } = require("./workers/evaluation.worker");
+const { closeQueue } = require("./config/queue");
 const logger = require("./utils/logger");
 
 /**
@@ -24,12 +26,23 @@ const startServer = async () => {
     // Initialize cron jobs
     cronManager.initializeCronJobs();
 
+    // Initialize background job worker for evaluations
+    const evaluationWorker = createEvaluationWorker();
+    logger.info("Background job worker initialized");
+
     // Graceful shutdown handlers
     const gracefulShutdown = async (signal) => {
       logger.info(`${signal} signal received: closing HTTP server`);
 
       // Stop cron jobs
       cronManager.stopAllJobs();
+
+      // Close worker
+      logger.info("Closing evaluation worker...");
+      await evaluationWorker.close();
+
+      // Close queue
+      await closeQueue();
 
       // Close server
       server.close(async () => {
