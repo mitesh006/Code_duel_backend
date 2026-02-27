@@ -3,6 +3,7 @@ const cors = require("cors");
 const { config } = require("./config/env");
 const { errorHandler, notFound } = require("./middlewares/error.middleware");
 const logger = require("./utils/logger");
+const { apiLimiter } = require("./config/rateLimiter");
 
 // Import routes
 const authRoutes = require("./routes/auth.routes");
@@ -33,6 +34,9 @@ const createApp = () => {
     // logger.info(`${req.method} ${req.path}`);
     next();
   });
+
+  // Apply rate limiting to all API routes
+  app.use("/api/", apiLimiter);
 
   // Health check endpoint
   app.get("/health", (req, res) => {
