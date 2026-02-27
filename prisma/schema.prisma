@@ -25,6 +25,7 @@ model User {
   // Relations
   ownedChallenges   Challenge[]        @relation("ChallengeOwner")
   memberships       ChallengeMember[]
+  challengeInvites  ChallengeInvite[]  @relation("InviteCreator")
   
   @@map("users")
 }
@@ -54,6 +55,7 @@ model Challenge {
   owner                   User               @relation("ChallengeOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members                 ChallengeMember[]
   dailyResults            DailyResult[]
+  invites                 ChallengeInvite[]
   
   @@map("challenges")
 }
@@ -143,6 +145,25 @@ model ProblemMetadata {
   @@index([titleSlug])
   @@index([difficulty])
   @@map("problem_metadata")
+}
+
+model ChallengeInvite {
+  id          String    @id @default(uuid())
+  challengeId String
+  code        String    @unique
+  createdBy   String
+  expiresAt   DateTime
+  maxUses     Int       @default(1)
+  usedCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  creator     User      @relation("InviteCreator", fields: [createdBy], references: [id])
+
+  @@index([code])
+  @@index([challengeId])
+  @@map("challenge_invites")
 }
 
 enum ChallengeStatus {
