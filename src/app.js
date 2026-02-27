@@ -17,20 +17,21 @@ const { apiLimiter, authLimiter } = require('./middlewares/rateLimiter.middlewar
 const createApp = () => {
   const app = express();
 
-  // 1. Security Middlewares (Team T066 Implementation)
+  // 1. CORS configuration (must come before rate limiters so preflight requests are handled)
+  app.use(
+    cors({
+      // if corsOrigin is wildcard we avoid setting credentials since browsers reject wildcard with credentials
+      origin: config.corsOrigin,
+      ...(config.corsOrigin === '*' ? {} : { credentials: true }),
+    })
+  );
+
+  // 2. Security Middlewares (Team T066 Implementation)
   // Apply global rate limiting to all API routes
   app.use('/api/', apiLimiter);
   
   // Apply strict limiting specifically to auth routes
   app.use('/api/auth/', authLimiter);
-
-  // 2. CORS configuration
-  app.use(
-    cors({
-      origin: config.corsOrigin,
-      credentials: true,
-    })
-  );
 
   // 3. Body parser middleware
   app.use(express.json());

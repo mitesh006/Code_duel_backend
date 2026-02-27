@@ -7,7 +7,7 @@ const { authenticate } = require("../middlewares/auth.middleware");
  * @route   POST /api/auth/register
  * @desc    Register a new user
  * @access  Public
- */
+*/
 router.post(
   "/register",
   authController.validateRegister,
@@ -18,21 +18,28 @@ router.post(
  * @route   POST /api/auth/login
  * @desc    Login user
  * @access  Public
- */
+*/
 router.post("/login", authController.validateLogin, authController.login);
 
 /**
  * @route   GET /api/auth/profile
  * @desc    Get current user profile
  * @access  Private
- */
+*/
 router.get("/profile", authenticate, authController.getProfile);
 
 /**
  * @route   PUT /api/auth/profile
  * @desc    Update user profile
  * @access  Private
- */
+*/
 router.put("/profile", authenticate, authController.updateProfile);
+
+/**
+ * @route   PUT /api/auth/verify-email
+ * @desc    Verifies user email
+ * @access  Public
+*/
+router.get("/verify-email", authController.verifyEmail);
 
 module.exports = router;

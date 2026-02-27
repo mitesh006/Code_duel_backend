@@ -39,6 +39,18 @@ const validateLogin = [
  * Register a new user
  * POST /api/auth/register
  */
+
+const verifyEmail = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+
+  const result = await authService.verifyEmail(token);
+
+  res.status(200).json({
+    success: true,
+    message: result.message,
+  });
+});
+
 const register = asyncHandler(async (req, res) => {
   // Check for validation errors
   const errors = validationResult(req);
@@ -132,4 +144,5 @@ module.exports = {
   updateProfile,
   validateRegister,
   validateLogin,
+  verifyEmail,
 };

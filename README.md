@@ -200,6 +200,7 @@ When creating a challenge, configure:
 - Input validation on all endpoints
 - SQL injection protection via Prisma ORM
 - Environment variable validation on startup
+- Email verification before account activation
 
 ## 📝 Development Notes
 

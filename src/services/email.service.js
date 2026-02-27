@@ -259,6 +259,47 @@ const templates = {
       </html>
     `,
   }),
+  verification: (username, verificationLink) => ({
+    subject: "Verify Your Code Duel Account 🔐",
+    html: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #4e73df 0%, #1cc88a 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+    .button { display: inline-block; background: #4e73df; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+    .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+    </style>
+    </head>
+    <body>
+    <div class="container">
+    <div class="header">
+    <h1>Email Verification 🔐</h1>
+    </div>
+    <div class="content">
+    <h2>Hey ${username}! 👋</h2>
+    <p>Thanks for registering with Code Duel.</p>
+    <p>Please verify your email address by clicking the button below:</p>
+    
+    <a href="${verificationLink}" class="button">Verify Email</a>
+    
+    <p>This link will expire in <strong>1 hour</strong>.</p>
+    <p>If you didn’t create this account, you can safely ignore this email.</p>
+    
+    <p>See you inside! 🚀</p>
+    <p><strong>The Code Duel Team</strong></p>
+    </div>
+    <div class="footer">
+    <p>© ${new Date().getFullYear()} Code Duel. All rights reserved.</p>
+    </div>
+    </div>
+    </body>
+    </html>
+    `,
+  }),
 };
 
 /**
@@ -281,6 +322,37 @@ const sendWelcomeEmail = async (email, username) => {
     return result;
   } catch (error) {
     logger.error(`Failed to send welcome email to ${email}:`, error);
+    return { success: false, reason: error.message };
+  }
+};
+
+/**
+ * Send email verification link
+ * @param {string} email - User email
+ * @param {string} username - Username
+ * @param {string} token - Verification token
+ */
+const sendVerificationEmail = async (email, username, token) => {
+  try {
+    const baseUrl = process.env.BACKEND_URL || "http://localhost:3000";
+
+    const verificationLink = `${baseUrl}/api/auth/verify-email?token=${token}`;
+
+    const template = templates.verification(username, verificationLink);
+
+    const result = await sendEmail({
+      to: email,
+      subject: template.subject,
+      html: template.html,
+    });
+
+    if (result.success) {
+      logger.info(`Verification email sent to ${email}`);
+    }
+
+    return result;
+  } catch (error) {
+    logger.error(`Failed to send verification email to ${email}:`, error);
     return { success: false, reason: error.message };
   }
 };
@@ -565,6 +637,7 @@ const getLeaderboardRank = async (challengeId, memberId) => {
 
 module.exports = {
   sendWelcomeEmail,
+  sendVerificationEmail,
   sendStreakReminder,
   sendStreakBrokenNotification,
   sendWeeklySummary,

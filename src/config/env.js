@@ -7,6 +7,8 @@ const config = {
   // Server Configuration
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || "development",
+  backendUrl:process.env.BACKEND_URL || "http://localhost:3000",
+
 
   // Database Configuration
   databaseUrl: process.env.DATABASE_URL,
