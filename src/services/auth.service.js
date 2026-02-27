@@ -156,6 +156,10 @@ const updateProfile = async (userId, updateData) => {
       where: { id: userId },
     });
 
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
       user.password

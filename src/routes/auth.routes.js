@@ -33,6 +33,11 @@ router.get("/profile", authenticate, authController.getProfile);
  * @desc    Update user profile
  * @access  Private
  */
-router.put("/profile", authenticate, authController.updateProfile);
+router.put(
+  "/profile",
+  authenticate,
+  authController.validateUpdateProfile,
+  authController.updateProfile
+);
 
 module.exports = router;
