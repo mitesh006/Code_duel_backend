@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,7 +6,31 @@ datasource db {
   provider = "postgresql"
 }
 
+model DailySubmission {
+  id          String    @id @default(uuid())
+  userId      String
+  challengeId String
+  date        DateTime
+  total       Int
+  passed      Int
+  failed      Int
+
+  user        User      @relation(fields: [userId], references: [id], name: "UserDailySubmissions")
+  challenge   Challenge @relation(fields: [challengeId], references: [id], name: "ChallengeDailySubmissions")
+
+  @@index([challengeId, date])
+  @@map("daily_submissions")
+}
+
 model User {
+  id                 String           @id @default(uuid())
+  email              String           @unique
+  username           String           @unique
+  password           String
+  leetcodeUsername   String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
   id                String             @id @default(uuid())
   email             String             @unique
   username          String             @unique
@@ -23,87 +44,87 @@ model User {
   // Email Preferences
   emailPreferences  Json?              @default("{\"welcomeEmail\": true, \"streakReminder\": true, \"streakBroken\": true, \"weeklySummary\": true}")
   
+
   // Relations
+
+  dailySubmissions   DailySubmission[] @relation("UserDailySubmissions")
+  ownedChallenges    Challenge[]       @relation("ChallengeOwner")
+  memberships        ChallengeMember[]
+
+
   ownedChallenges   Challenge[]        @relation("ChallengeOwner")
   memberships       ChallengeMember[]
   challengeInvites  ChallengeInvite[]  @relation("InviteCreator")
   
+
   @@map("users")
 }
 
 model Challenge {
-  id                      String             @id @default(uuid())
-  name                    String
-  description             String?
-  ownerId                 String
-  
-  // Challenge Rules
-  minSubmissionsPerDay    Int                @default(1)
-  difficultyFilter        String[]           // ["Easy", "Medium", "Hard"]
-  uniqueProblemConstraint Boolean            @default(true)
-  penaltyAmount           Float              @default(0)
-  
-  // Challenge Timeline
-  startDate               DateTime
-  endDate                 DateTime
-  status                  ChallengeStatus    @default(PENDING)
-  visibility              ChallengeVisibility @default(PUBLIC)
-  
-  createdAt               DateTime           @default(now())
-  updatedAt               DateTime           @updatedAt
-  
+  id                String              @id @default(uuid())
+  name              String
+  description       String?
+  ownerId           String
+  startDate         DateTime
+  endDate           DateTime
+  status            ChallengeStatus      @default(PENDING)
+  visibility        ChallengeVisibility  @default(PUBLIC)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
   // Relations
+
+  owner             User                 @relation("ChallengeOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  dailySubmissions  DailySubmission[]    @relation("ChallengeDailySubmissions")
+  members           ChallengeMember[]
+
   owner                   User               @relation("ChallengeOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members                 ChallengeMember[]
   dailyResults            DailyResult[]
   invites                 ChallengeInvite[]
   
+
   @@map("challenges")
 }
 
 model ChallengeMember {
-  id                String           @id @default(uuid())
-  challengeId       String
-  userId            String
-  joinedAt          DateTime         @default(now())
-  isActive          Boolean          @default(true)
-  
-  // Computed Stats
-  currentStreak     Int              @default(0)
-  longestStreak     Int              @default(0)
-  totalPenalties    Float            @default(0)
-  
+  id          String       @id @default(uuid())
+  challengeId String
+  userId      String
+  joinedAt    DateTime     @default(now())
+  isActive    Boolean      @default(true)
+
+  // Stats
+  currentStreak  Int       @default(0)
+  longestStreak   Int      @default(0)
+  totalPenalties  Float    @default(0)
+
   // Relations
-  challenge         Challenge        @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dailyResults      DailyResult[]
-  penaltyLedger     PenaltyLedger[]
-  
+  challenge   Challenge   @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyResults DailyResult[]
+  penaltyLedger PenaltyLedger[]
+
   @@unique([challengeId, userId])
   @@map("challenge_members")
 }
 
 model DailyResult {
-  id                String           @id @default(uuid())
-  challengeId       String
-  memberId          String
-  date              DateTime         @db.Date
-  
-  // Evaluation Results
-  completed         Boolean          @default(false)
-  submissionsCount  Int              @default(0)
-  problemsSolved    String[]         // Array of problem slugs
-  
-  // Metadata
-  evaluatedAt       DateTime?
-  metadata          Json?            // Store additional data like submission details
-  
-  createdAt         DateTime         @default(now())
-  
+  id             String          @id @default(uuid())
+  challengeId    String
+  memberId       String
+  date           DateTime        @db.Date
+  completed      Boolean         @default(false)
+  submissionsCount Int           @default(0)
+  problemsSolved String[]
+  evaluatedAt    DateTime?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+
   // Relations
-  challenge         Challenge        @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  member            ChallengeMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  
+  challenge      Challenge       @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  member         ChallengeMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
   @@unique([challengeId, memberId, date])
   @@index([date])
   @@index([memberId])
@@ -111,38 +132,35 @@ model DailyResult {
 }
 
 model PenaltyLedger {
-  id                String           @id @default(uuid())
-  memberId          String
-  amount            Float
-  reason            String
-  date              DateTime         @db.Date
-  createdAt         DateTime         @default(now())
-  
-  // Relations
-  member            ChallengeMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  
+  id        String           @id @default(uuid())
+  memberId  String
+  amount    Float
+  reason    String
+  date      DateTime         @db.Date
+  createdAt DateTime         @default(now())
+
+  member    ChallengeMember  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
   @@index([memberId])
   @@index([date])
   @@map("penalty_ledger")
 }
 
 model ProblemMetadata {
-  id                String           @id @default(uuid())
-  titleSlug         String           @unique
-  questionId        String
-  title             String
-  difficulty        String           // Easy, Medium, Hard
-  acRate            Float?
-  likes             Int?
-  dislikes          Int?
-  isPaidOnly        Boolean          @default(false)
-  topicTags         String[]         // Array of topic names
-  
-  // Cache metadata
-  lastFetchedAt     DateTime         @default(now())
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
+  id           String   @id @default(uuid())
+  titleSlug    String   @unique
+  questionId   String
+  title        String
+  difficulty   String
+  acRate       Float?
+  likes        Int?
+  dislikes     Int?
+  isPaidOnly   Boolean  @default(false)
+  topicTags    String[]
+  lastFetchedAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   @@index([titleSlug])
   @@index([difficulty])
   @@map("problem_metadata")

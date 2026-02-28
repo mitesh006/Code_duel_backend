@@ -25,10 +25,10 @@ class CronManager {
       async () => {
         logger.info("Starting daily evaluation cron job");
         try {
-          await evaluationService.runDailyEvaluation();
-          logger.info("Daily evaluation completed successfully");
+          await evaluationService.runDailyEvaluationWithQueue(); // UPDATED: Use queue-based evaluation
+          logger.info("Daily evaluation jobs queued successfully");
         } catch (error) {
-          logger.error("Daily evaluation failed:", error);
+          logger.error("Daily evaluation queueing failed:", error);
         }
       },
       {
@@ -150,10 +150,10 @@ class CronManager {
   async triggerDailyEvaluation() {
     logger.info("Manually triggering daily evaluation");
     try {
-      await evaluationService.runDailyEvaluation();
-      logger.info("Manual daily evaluation completed");
+      await evaluationService.runDailyEvaluationWithQueue(); // UPDATED: Use queue-based evaluation
+      logger.info("Manual daily evaluation jobs queued successfully");
     } catch (error) {
-      logger.error("Manual daily evaluation failed:", error);
+      logger.error("Manual daily evaluation queueing failed:", error);
       throw error;
     }
   }

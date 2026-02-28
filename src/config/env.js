@@ -49,6 +49,12 @@ const config = {
 
   // CORS Configuration
   corsOrigin: process.env.CORS_ORIGIN || "*",
+
+  // Redis Configuration (for BullMQ)
+  redisHost: process.env.REDIS_HOST || "127.0.0.1",
+  redisPort: parseInt(process.env.REDIS_PORT) || 6379,
+  redisPassword: process.env.REDIS_PASSWORD || undefined,
+  redisDb: parseInt(process.env.REDIS_DB) || 0,
 };
 
 // Validate critical environment variables

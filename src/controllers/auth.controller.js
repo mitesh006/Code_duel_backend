@@ -36,6 +36,9 @@ const validateLogin = [
 ];
 
 /**
+
+
+
  * Validation middleware for forgot password
  */
 const validateForgotPassword = [
@@ -53,11 +56,8 @@ const validateResetPassword = [
   body("newPassword")
     .isLength({ min: 6 })
     .withMessage("New password must be at least 6 characters"),
-];
 
-/**
- * Validation middleware for profile update
- */
+
 const validateUpdateProfile = [
   body("leetcodeUsername")
     .optional({ nullable: true })
@@ -265,6 +265,11 @@ module.exports = {
   login,
   getProfile,
   updateProfile,
+
+
+  validateRegister,
+  validateLogin,
+
   forgotPassword,
   resetPassword,
   logout,
@@ -273,5 +278,14 @@ module.exports = {
   validateForgotPassword,
   validateResetPassword,
   validateUpdateProfile,
+
+  forgotPassword,
+  resetPassword,
+  validateRegister,
+  validateLogin,
+  validateForgotPassword,
+  validateResetPassword,
+  validateUpdateProfile,
+
 };
 

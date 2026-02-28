@@ -3,10 +3,71 @@ const leetcodeService = require("./leetcode.service");
 const penaltyService = require("./penalty.service");
 const logger = require("../utils/logger");
 const { sendStreakBrokenNotification } = require("./email.service");
+const { evaluationQueue } = require("../config/queue");
 
 /**
- * Run daily evaluation for all active challenges
- * This is the main function called by the cron job
+ * Run daily evaluation using background job queue (NEW - Queue-based)
+ * This pushes evaluation jobs to the queue for async processing
+ */
+const runDailyEvaluationWithQueue = async () => {
+  const evaluationDate = new Date();
+  evaluationDate.setHours(0, 0, 0, 0); // Start of day
+
+  logger.info(
+    `Starting queue-based daily evaluation for date: ${evaluationDate.toISOString()}`
+  );
+
+  try {
+    // Get all active challenges
+    const activeChallenges = await prisma.challenge.findMany({
+      where: {
+        status: "ACTIVE",
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() },
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    logger.info(
+      `Found ${activeChallenges.length} active challenges to evaluate`
+    );
+
+    // Push challenge evaluation jobs to queue
+    const jobs = activeChallenges.map((challenge) => ({
+      name: "challenge-evaluation",
+      data: {
+        challengeId: challenge.id,
+        evaluationDate: evaluationDate.toISOString(),
+      },
+      opts: {
+        jobId: `challenge-${challenge.id}-${evaluationDate.toISOString()}`, // Prevent duplicate jobs
+      },
+    }));
+
+    await evaluationQueue.addBulk(jobs);
+
+    logger.info(
+      `Successfully queued ${jobs.length} challenge evaluation jobs. Processing asynchronously...`
+    );
+
+    return {
+      success: true,
+      challengesQueued: jobs.length,
+      date: evaluationDate,
+    };
+  } catch (error) {
+    logger.error("Failed to queue daily evaluation:", error);
+    throw error;
+  }
+};
+
+/**
+ * Run daily evaluation for all active challenges (OLD - Synchronous)
+ * This is the legacy synchronous version
+ * @deprecated Use runDailyEvaluationWithQueue for better performance
  */
 const runDailyEvaluation = async () => {
   const evaluationDate = new Date();
@@ -429,6 +490,7 @@ const getTodayStatus = async (memberId) => {
 
 module.exports = {
   runDailyEvaluation,
+  runDailyEvaluationWithQueue, // NEW: Queue-based evaluation
   evaluateChallenge,
   evaluateMember,
   getMemberDailyResults,
