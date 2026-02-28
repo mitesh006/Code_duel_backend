@@ -435,6 +435,33 @@ const sendWeeklySummary = async (email, username, stats) => {
 };
 
 /**
+ * Send password reset email
+ * @param {string} email - User email
+ * @param {string} username - Username
+ * @param {string} resetLink - Reset URL
+ * @param {number} expiryMinutes - Expiry in minutes
+ */
+const sendPasswordResetEmail = async (email, username, resetLink, expiryMinutes) => {
+  try {
+    const template = templates.passwordReset(username, resetLink, expiryMinutes);
+    const result = await sendEmail({
+      to: email,
+      subject: template.subject,
+      html: template.html,
+    });
+
+    if (result.success) {
+      logger.info(`Password reset email sent to ${email}`);
+    }
+
+    return result;
+  } catch (error) {
+    logger.error(`Failed to send password reset email to ${email}:`, error);
+    return { success: false, reason: error.message };
+  }
+};
+
+/**
  * Send daily reminder to users who haven't completed today's challenge
  */
 const sendDailyReminders = async () => {

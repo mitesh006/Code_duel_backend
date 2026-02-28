@@ -45,6 +45,9 @@ const config = {
   smtpPass: process.env.SMTP_PASS,
   emailFrom: process.env.EMAIL_FROM || "Code Duel <noreply@codeduel.com>",
   emailEnabled: process.env.EMAIL_ENABLED === "true",
+  appBaseUrl: process.env.APP_BASE_URL || "http://localhost:3000",
+  passwordResetTokenExpiryMinutes:
+    parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES, 10) || 60,
 
   // CORS Configuration
   corsOrigin: process.env.CORS_ORIGIN || "*",

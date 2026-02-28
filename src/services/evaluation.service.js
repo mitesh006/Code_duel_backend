@@ -317,13 +317,108 @@ const getMemberDailyResults = async (memberId, limit = 30) => {
 };
 
 /**
+ * Normalise a Date to local midnight so all date comparisons are consistent.
+ * Uses local time to match the convention used throughout the codebase
+ * (stats.service.js, dashboard.controller.js, cron evaluation).
+ * @param {Date} [date=new Date()] - Date to normalise (defaults to now)
+ * @returns {Date} Normalised date at 00:00:00.000 local time
+ */
+const normaliseToMidnight = (date = new Date()) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+/**
+ * Get daily results for multiple members in a single bulk query.
+ * Results are returned grouped by memberId to avoid N+1 query patterns.
+ *
+ * The window is intentionally calendar-based (e.g. daysBack=7 means the last
+ * 7 calendar days including today). This is the correct semantic for dashboard
+ * activity strips where missing days are meaningful — they represent days on
+ * which the member did not submit. Using a record-count limit (take: N) would
+ * silently skip missed days and surface stale results from weeks ago.
+ *
+ * @param {string[]} memberIds - Array of challenge member IDs
+ * @param {number} daysBack - Number of calendar days to look back (default 7)
+ * @returns {Object} Map of memberId -> dailyResult[], ordered newest-first
+ */
+const getBulkMemberDailyResults = async (memberIds, daysBack = 7) => {
+  if (!memberIds || memberIds.length === 0) return {};
+
+  const since = normaliseToMidnight();
+  since.setDate(since.getDate() - (daysBack - 1));
+
+  const results = await prisma.dailyResult.findMany({
+    where: {
+      memberId: { in: memberIds },
+      date: { gte: since },
+    },
+    orderBy: { date: "desc" },
+  });
+
+  return results.reduce((acc, result) => {
+    if (!acc[result.memberId]) acc[result.memberId] = [];
+    acc[result.memberId].push(result);
+    return acc;
+  }, {});
+};
+
+/**
+ * Get all daily results for multiple members in a single bulk query.
+ * Returns aggregated stats (totalDays, completedDays) grouped by memberId,
+ * used by the leaderboard which needs full-history counts rather than a
+ * calendar window.
+ * @param {string[]} memberIds - Array of challenge member IDs
+ * @returns {Object} Map of memberId -> { totalDays, completedDays }
+ */
+const getBulkAllMemberResults = async (memberIds) => {
+  if (!memberIds || memberIds.length === 0) return {};
+
+  const results = await prisma.dailyResult.findMany({
+    where: { memberId: { in: memberIds } },
+    select: { memberId: true, completed: true },
+  });
+
+  return results.reduce((acc, result) => {
+    if (!acc[result.memberId]) acc[result.memberId] = { totalDays: 0, completedDays: 0 };
+    acc[result.memberId].totalDays += 1;
+    if (result.completed) acc[result.memberId].completedDays += 1;
+    return acc;
+  }, {});
+};
+
+/**
+ * Get today's daily result for multiple members in a single bulk query.
+ * Results are returned as a map keyed by memberId for O(1) lookup.
+ * @param {string[]} memberIds - Array of challenge member IDs
+ * @returns {Object} Map of memberId -> dailyResult (or undefined if none)
+ */
+const getBulkTodayResults = async (memberIds) => {
+  if (!memberIds || memberIds.length === 0) return {};
+
+  const today = normaliseToMidnight();
+
+  const results = await prisma.dailyResult.findMany({
+    where: {
+      memberId: { in: memberIds },
+      date: today,
+    },
+  });
+
+  return results.reduce((acc, result) => {
+    acc[result.memberId] = result;
+    return acc;
+  }, {});
+};
+
+/**
  * Get today's status for a member
  * @param {string} memberId - Challenge member ID
  * @returns {Object|null} Today's daily result or null
  */
 const getTodayStatus = async (memberId) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = normaliseToMidnight();
 
   return await prisma.dailyResult.findUnique({
     where: {
@@ -343,5 +438,8 @@ module.exports = {
   evaluateChallenge,
   evaluateMember,
   getMemberDailyResults,
+  getBulkMemberDailyResults,
+  getBulkAllMemberResults,
+  getBulkTodayResults,
   getTodayStatus,
 };
