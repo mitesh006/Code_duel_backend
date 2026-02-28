@@ -151,6 +151,8 @@ src/
    - `DATABASE_URL`: PostgreSQL connection string
    - `JWT_SECRET`: Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
    - `ENCRYPTION_KEY`: Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   - `APP_BASE_URL`: Frontend/base URL used in password reset links (e.g. `http://localhost:5173`)
+   - `PASSWORD_RESET_TOKEN_EXPIRY_MINUTES`: Reset token validity window in minutes (default: `60`)
    - Other configuration as needed
 
 4. **Set up database**
@@ -178,6 +180,8 @@ The server will start on `http://localhost:3000` (or the port specified in `.env
 
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login user
+- `POST /api/auth/forgot-password` - Request password reset link
+- `POST /api/auth/reset-password` - Reset password with token
 - `GET /api/auth/profile` - Get current user profile (protected)
 - `PUT /api/auth/profile` - Update user profile (protected)
 
