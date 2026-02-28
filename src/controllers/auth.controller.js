@@ -56,6 +56,27 @@ const validateResetPassword = [
 ];
 
 /**
+ * Validation middleware for forgot password
+ */
+const validateForgotPassword = [
+  body("email")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email is required"),
+];
+
+/**
+ * Validation middleware for reset password
+ */
+const validateResetPassword = [
+  body("token").notEmpty().withMessage("Reset token is required"),
+  body("newPassword")
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+];
+
+
+/**
  * Register a new user
  * POST /api/auth/register
  */
@@ -223,6 +244,9 @@ module.exports = {
   verifyEmail,
   forgotPassword,
   resetPassword,
+  validateRegister,
+  validateLogin,
   validateForgotPassword,
   validateResetPassword,
 };
+

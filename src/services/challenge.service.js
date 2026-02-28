@@ -348,10 +348,161 @@ const updateChallengeStatus = async (challengeId, userId, newStatus) => {
   return updatedChallenge;
 };
 
+/**
+ * Generate an invite code for a challenge (owner only)
+ * @param {string} userId - User ID (must be owner)
+ * @param {string} challengeId - Challenge ID
+ * @param {Object} options - Invite options
+ * @param {number} options.expiresInHours - Hours until expiry (default: 24)
+ * @param {number} options.maxUses - Maximum number of uses (default: 1)
+ * @returns {Object} Created invite with code
+ */
+const generateInviteCode = async (userId, challengeId, options = {}) => {
+  const { expiresInHours = 24, maxUses = 1 } = options;
+
+  // Verify challenge exists
+  const challenge = await prisma.challenge.findUnique({
+    where: { id: challengeId },
+  });
+
+  if (!challenge) {
+    throw new AppError("Challenge not found", 404);
+  }
+
+  // Verify user is the owner
+  if (challenge.ownerId !== userId) {
+    throw new AppError("Only the challenge owner can generate invite codes", 403);
+  }
+
+  // Generate cryptographically random code
+  const crypto = require("crypto");
+  const code = crypto.randomBytes(6).toString("base64url").substring(0, 8).toUpperCase();
+
+  // Calculate expiry
+  const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+
+  // Create invite record
+  const invite = await prisma.challengeInvite.create({
+    data: {
+      challengeId,
+      code,
+      createdBy: userId,
+      expiresAt,
+      maxUses,
+    },
+  });
+
+  logger.info(
+    `Invite code generated for challenge ${challenge.name} by owner. Code: ${code}, Expires: ${expiresAt.toISOString()}, Max uses: ${maxUses}`
+  );
+
+  return {
+    code: invite.code,
+    expiresAt: invite.expiresAt,
+    maxUses: invite.maxUses,
+    challengeId: invite.challengeId,
+  };
+};
+
+/**
+ * Join a challenge using an invite code
+ * @param {string} userId - User ID
+ * @param {string} code - Invite code
+ * @returns {Object} Challenge membership
+ */
+const joinByInviteCode = async (userId, code) => {
+  // Find the invite by code
+  const invite = await prisma.challengeInvite.findUnique({
+    where: { code },
+    include: {
+      challenge: {
+        select: {
+          id: true,
+          name: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  if (!invite) {
+    throw new AppError("Invalid invite code", 404);
+  }
+
+  // Check if code has expired
+  if (invite.expiresAt < new Date()) {
+    throw new AppError("Invite code has expired", 400);
+  }
+
+  // Check if code has reached max uses
+  if (invite.usedCount >= invite.maxUses) {
+    throw new AppError("Invite code has reached its maximum usage limit", 400);
+  }
+
+  // Check if challenge is still joinable
+  if (invite.challenge.status === "COMPLETED" || invite.challenge.status === "CANCELLED") {
+    throw new AppError("Cannot join a completed or cancelled challenge", 400);
+  }
+
+  // Check if already a member
+  const existingMembership = await prisma.challengeMember.findUnique({
+    where: {
+      challengeId_userId: {
+        challengeId: invite.challengeId,
+        userId,
+      },
+    },
+  });
+
+  if (existingMembership) {
+    throw new AppError("Already a member of this challenge", 400);
+  }
+
+  // Atomically: increment usedCount + create membership
+  const [updatedInvite, membership] = await prisma.$transaction([
+    prisma.challengeInvite.update({
+      where: { code },
+      data: {
+        usedCount: { increment: 1 },
+      },
+    }),
+    prisma.challengeMember.create({
+      data: {
+        challengeId: invite.challengeId,
+        userId,
+      },
+      include: {
+        challenge: {
+          select: {
+            id: true,
+            name: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  logger.info(
+    `User ${membership.user.username} joined challenge ${membership.challenge.name} via invite code ${code}`
+  );
+
+  return membership;
+};
+
 module.exports = {
   createChallenge,
   getChallengeById,
   joinChallenge,
   getUserChallenges,
   updateChallengeStatus,
+  generateInviteCode,
+  joinByInviteCode,
 };
