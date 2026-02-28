@@ -34,49 +34,44 @@ const getDashboard = asyncHandler(async (req, res) => {
     },
   });
 
-  // Get today's status for each membership
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  if (memberships.length === 0) {
+    return res.status(200).json({ success: true, data: [] });
+  }
 
-  const dashboardData = await Promise.all(
-    memberships.map(async (membership) => {
-      // Get today's result
-      const todayResult = await prisma.dailyResult.findUnique({
-        where: {
-          challengeId_memberId_date: {
-            challengeId: membership.challengeId,
-            memberId: membership.id,
-            date: today,
-          },
-        },
-      });
+  const memberIds = memberships.map((m) => m.id);
 
-      // Get recent daily results (last 7 days)
-      const recentResults = await evaluationService.getMemberDailyResults(
-        membership.id,
-        7
-      );
+  // Delegate all bulk fetching and grouping to the service layer.
+  // getBulkMemberDailyResults uses a 7-calendar-day window (not take:7) so
+  // that missing days are correctly represented as absent entries in the
+  // activity strip rather than being silently skipped.
+  const [todayResultByMember, recentResultsByMember] = await Promise.all([
+    evaluationService.getBulkTodayResults(memberIds),
+    evaluationService.getBulkMemberDailyResults(memberIds, 7),
+  ]);
 
-      return {
-        challenge: membership.challenge,
-        currentStreak: membership.currentStreak,
-        longestStreak: membership.longestStreak,
-        totalPenalties: membership.totalPenalties,
-        todayStatus: todayResult
-          ? {
-              completed: todayResult.completed,
-              submissionsCount: todayResult.submissionsCount,
-              evaluatedAt: todayResult.evaluatedAt,
-            }
-          : null,
-        recentResults: recentResults.map((r) => ({
-          date: r.date,
-          completed: r.completed,
-          submissionsCount: r.submissionsCount,
-        })),
-      };
-    })
-  );
+  const dashboardData = memberships.map((membership) => {
+    const todayResult = todayResultByMember[membership.id] || null;
+    const memberRecentResults = recentResultsByMember[membership.id] || [];
+
+    return {
+      challenge: membership.challenge,
+      currentStreak: membership.currentStreak,
+      longestStreak: membership.longestStreak,
+      totalPenalties: membership.totalPenalties,
+      todayStatus: todayResult
+        ? {
+            completed: todayResult.completed,
+            submissionsCount: todayResult.submissionsCount,
+            evaluatedAt: todayResult.evaluatedAt,
+          }
+        : null,
+      recentResults: memberRecentResults.map((r) => ({
+        date: r.date,
+        completed: r.completed,
+        submissionsCount: r.submissionsCount,
+      })),
+    };
+  });
 
   res.status(200).json({
     success: true,
@@ -187,30 +182,30 @@ const getChallengeLeaderboard = asyncHandler(async (req, res) => {
     ],
   });
 
-  // Get total completed days for each member
-  const leaderboard = await Promise.all(
-    members.map(async (member) => {
-      const results = await prisma.dailyResult.findMany({
-        where: { memberId: member.id },
-      });
+  if (members.length === 0) {
+    return res.status(200).json({ success: true, data: [] });
+  }
 
-      const totalDays = results.length;
-      const completedDays = results.filter((r) => r.completed).length;
-      const completionRate =
-        totalDays > 0 ? (completedDays / totalDays) * 100 : 0;
+  const memberIds = members.map((m) => m.id);
 
-      return {
-        username: member.user.username,
-        leetcodeUsername: member.user.leetcodeUsername,
-        currentStreak: member.currentStreak,
-        longestStreak: member.longestStreak,
-        totalPenalties: member.totalPenalties,
-        completedDays,
-        totalDays,
-        completionRate: completionRate.toFixed(2),
-      };
-    })
-  );
+  // Delegate bulk fetching to the service layer — one query for all members
+  const statsByMember = await evaluationService.getBulkAllMemberResults(memberIds);
+
+  const leaderboard = members.map((member) => {
+    const { totalDays = 0, completedDays = 0 } = statsByMember[member.id] || {};
+    const completionRate = totalDays > 0 ? (completedDays / totalDays) * 100 : 0;
+
+    return {
+      username: member.user.username,
+      leetcodeUsername: member.user.leetcodeUsername,
+      currentStreak: member.currentStreak,
+      longestStreak: member.longestStreak,
+      totalPenalties: member.totalPenalties,
+      completedDays,
+      totalDays,
+      completionRate: completionRate.toFixed(2),
+    };
+  });
 
   res.status(200).json({
     success: true,
@@ -224,8 +219,6 @@ const getChallengeLeaderboard = asyncHandler(async (req, res) => {
  */
 const getTodayStatus = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   // Get all active memberships
   const memberships = await prisma.challengeMember.findMany({
@@ -247,34 +240,37 @@ const getTodayStatus = asyncHandler(async (req, res) => {
     },
   });
 
-  // Get today's results
-  const todayStatuses = await Promise.all(
-    memberships.map(async (membership) => {
-      const result = await prisma.dailyResult.findUnique({
-        where: {
-          challengeId_memberId_date: {
-            challengeId: membership.challengeId,
-            memberId: membership.id,
-            date: today,
-          },
-        },
-      });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-      return {
-        challengeId: membership.challenge.id,
-        challengeName: membership.challenge.name,
-        requiredSubmissions: membership.challenge.minSubmissionsPerDay,
-        status: result
-          ? {
-              completed: result.completed,
-              submissionsCount: result.submissionsCount,
-              problemsSolved: result.problemsSolved,
-              evaluatedAt: result.evaluatedAt,
-            }
-          : null,
-      };
-    })
-  );
+  if (memberships.length === 0) {
+    return res.status(200).json({
+      success: true,
+      data: { date: today, challenges: [] },
+    });
+  }
+
+  const memberIds = memberships.map((m) => m.id);
+
+  // Delegate bulk fetching and grouping to the service layer
+  const resultByMemberId = await evaluationService.getBulkTodayResults(memberIds);
+
+  const todayStatuses = memberships.map((membership) => {
+    const result = resultByMemberId[membership.id] || null;
+    return {
+      challengeId: membership.challenge.id,
+      challengeName: membership.challenge.name,
+      requiredSubmissions: membership.challenge.minSubmissionsPerDay,
+      status: result
+        ? {
+            completed: result.completed,
+            submissionsCount: result.submissionsCount,
+            problemsSolved: result.problemsSolved,
+            evaluatedAt: result.evaluatedAt,
+          }
+        : null,
+    };
+  });
 
   res.status(200).json({
     success: true,
