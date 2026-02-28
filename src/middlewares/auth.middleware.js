@@ -1,6 +1,7 @@
 const { verifyToken } = require("../utils/jwt");
 const { prisma } = require("../config/prisma");
 const logger = require("../utils/logger");
+const authService = require("../services/auth.service");
 
 /**
  * Authentication middleware
@@ -30,6 +31,18 @@ const authenticate = async (req, res, next) => {
         message: error.message,
       });
     }
+
+    // Check if token is blacklisted
+    const isBlacklisted = await authService.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: "Token has been revoked",
+      });
+    }
+
+    // Store token for use in controllers (e.g., logout endpoint)
+    req.verifiedToken = token;
 
     // Fetch user from database
     const user = await prisma.user.findUnique({

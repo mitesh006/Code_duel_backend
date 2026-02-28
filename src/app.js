@@ -1,9 +1,12 @@
 const express = require("express");
 const cors = require("cors");
+const { default: addRequestId } = require("express-request-id");
+const responseTime = require("response-time");
 const { config } = require("./config/env");
 const { errorHandler, notFound } = require("./middlewares/error.middleware");
 const logger = require("./utils/logger");
 const { apiLimiter } = require("./config/rateLimiter");
+const requestLogger = require("./middlewares/requestLogger");
 
 // Import routes
 const authRoutes = require("./routes/auth.routes");
@@ -33,7 +36,12 @@ const createApp = () => {
     })
   );
 
-  // 3. Body parser middleware
+  // Request tracking middleware
+  app.use(addRequestId());
+  app.use(responseTime());
+  app.use(requestLogger);
+
+  // Body parser middleware
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
@@ -76,12 +84,8 @@ const createApp = () => {
     });
   });
 
-  // 404 handler
-  app.use(notFound);
-
   // Global error handler
   app.use(errorHandler);
-
   return app;
 };
 

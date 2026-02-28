@@ -259,6 +259,54 @@ const templates = {
       </html>
     `,
   }),
+
+  /**
+   * Password reset template
+   */
+  passwordReset: (username, resetLink, expiryMinutes) => ({
+    subject: "Reset your Code Duel password",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; background: #667eea; color: white !important; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .notice { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 6px; padding: 12px; margin: 16px 0; }
+          .footer { text-align: center; color: #888; font-size: 12px; margin-top: 20px; }
+          .link { word-break: break-all; color: #667eea; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Password Reset Request</h1>
+          </div>
+          <div class="content">
+            <p>Hi ${username},</p>
+            <p>We received a request to reset your password for your Code Duel account.</p>
+            <p>
+              <a href="${resetLink}" class="button">Reset Password</a>
+            </p>
+            <p>If the button does not work, use this link:</p>
+            <p><a href="${resetLink}" class="link">${resetLink}</a></p>
+            <div class="notice">
+              <strong>Security notice:</strong> This link expires in ${expiryMinutes} minutes and can be used only once.
+            </div>
+            <p>If you did not request this change, you can safely ignore this email.</p>
+            <p><strong>The Code Duel Team</strong></p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} Code Duel. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  }),
 };
 
 /**
@@ -358,6 +406,33 @@ const sendWeeklySummary = async (email, username, stats) => {
     return result;
   } catch (error) {
     logger.error(`Failed to send weekly summary to ${email}:`, error);
+    return { success: false, reason: error.message };
+  }
+};
+
+/**
+ * Send password reset email
+ * @param {string} email - User email
+ * @param {string} username - Username
+ * @param {string} resetLink - Reset URL
+ * @param {number} expiryMinutes - Expiry in minutes
+ */
+const sendPasswordResetEmail = async (email, username, resetLink, expiryMinutes) => {
+  try {
+    const template = templates.passwordReset(username, resetLink, expiryMinutes);
+    const result = await sendEmail({
+      to: email,
+      subject: template.subject,
+      html: template.html,
+    });
+
+    if (result.success) {
+      logger.info(`Password reset email sent to ${email}`);
+    }
+
+    return result;
+  } catch (error) {
+    logger.error(`Failed to send password reset email to ${email}:`, error);
     return { success: false, reason: error.message };
   }
 };
@@ -565,6 +640,7 @@ const getLeaderboardRank = async (challengeId, memberId) => {
 
 module.exports = {
   sendWelcomeEmail,
+  sendPasswordResetEmail,
   sendStreakReminder,
   sendStreakBrokenNotification,
   sendWeeklySummary,

@@ -46,3 +46,6 @@ prisma/migrations/
 # Temporary files
 tmp/
 temp/
+# Agent/Skills files
+.agents/
+skills-lock.json

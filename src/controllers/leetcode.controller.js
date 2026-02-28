@@ -21,15 +21,12 @@ const getUserProfile = asyncHandler(async (req, res) => {
  */
 const testConnection = asyncHandler(async (req, res) => {
   const { username } = req.params;
+  const { date } = req.query;
 
-  // Fetch recent submissions
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
+  const targetDate = date ? new Date(date) : new Date();
   const submissions = await leetcodeService.fetchSubmissionsForDate(
     username,
-    yesterday
+    targetDate
   );
 
   res.status(200).json({
@@ -37,8 +34,9 @@ const testConnection = asyncHandler(async (req, res) => {
     message: "Connection test successful",
     data: {
       username,
+      date: targetDate.toISOString(),
       submissionsFound: submissions.length,
-      submissions: submissions// Return first 5 for testing
+      submissions
     },
   });
 });
@@ -64,8 +62,43 @@ const getProblemMetadata = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Test date filtering for submissions
+ * GET /api/leetcode/submissions/:username
+ */
+const getSubmissionsForDate = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+  const { date } = req.query;
+
+  if (!date) {
+    return res.status(400).json({
+      success: false,
+      message: "Date parameter is required (format: YYYY-MM-DD)",
+    });
+  }
+
+  const targetDate = new Date(date);
+  const submissions = await leetcodeService.fetchSubmissionsForDate(
+    username,
+    targetDate
+  );
+
+  const enriched = await leetcodeService.enrichSubmissionsWithMetadata(submissions);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      username,
+      date: targetDate.toISOString().split('T')[0],
+      submissionsCount: enriched.length,
+      submissions: enriched,
+    },
+  });
+});
+
 module.exports = {
   getUserProfile,
   testConnection,
   getProblemMetadata,
+  getSubmissionsForDate,
 };

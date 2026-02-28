@@ -24,6 +24,28 @@ router.post(
 router.post("/login", authLimiter, authController.validateLogin, authController.login);
 
 /**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Request a password reset link
+ * @access  Public
+ */
+router.post(
+  "/forgot-password",
+  authController.validateForgotPassword,
+  authController.forgotPassword
+);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password using a valid reset token
+ * @access  Public
+ */
+router.post(
+  "/reset-password",
+  authController.validateResetPassword,
+  authController.resetPassword
+);
+
+/**
  * @route   GET /api/auth/profile
  * @desc    Get current user profile
  * @access  Private
@@ -35,6 +57,18 @@ router.get("/profile", authenticate, authController.getProfile);
  * @desc    Update user profile
  * @access  Private
  */
-router.put("/profile", authenticate, authController.updateProfile);
+router.put(
+  "/profile",
+  authenticate,
+  authController.validateUpdateProfile,
+  authController.updateProfile
+);
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout user and blacklist token
+ * @access  Private
+ */
+router.post("/logout", authenticate, authController.logout);
 
 module.exports = router;
