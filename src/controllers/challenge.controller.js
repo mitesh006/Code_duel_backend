@@ -207,6 +207,72 @@ const updateChallengeStatus = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Validation middleware for generating invite code
+ */
+const validateGenerateInvite = [
+  body("expiresInHours")
+    .optional()
+    .isInt({ min: 1, max: 168 })
+    .withMessage("Expiry must be between 1 and 168 hours (7 days)"),
+  body("maxUses")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("Max uses must be between 1 and 100"),
+];
+
+/**
+ * Generate an invite code for a challenge
+ * POST /api/challenges/:id/invite
+ */
+const generateInviteCode = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: errors.array(),
+    });
+  }
+
+  const { id } = req.params;
+  const { expiresInHours, maxUses } = req.body;
+
+  const invite = await challengeService.generateInviteCode(req.user.id, id, {
+    expiresInHours,
+    maxUses,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Invite code generated successfully",
+    data: invite,
+  });
+});
+
+/**
+ * Join a challenge using an invite code
+ * POST /api/challenges/join-by-code
+ */
+const joinByInviteCode = asyncHandler(async (req, res) => {
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({
+      success: false,
+      message: "Invite code is required",
+    });
+  }
+
+  const membership = await challengeService.joinByInviteCode(req.user.id, code);
+
+  res.status(200).json({
+    success: true,
+    message: "Successfully joined the challenge via invite code",
+    data: membership,
+  });
+});
+
 module.exports = {
   createChallenge,
   getChallengeById,
@@ -215,4 +281,7 @@ module.exports = {
   updateChallengeStatus,
   validateCreateChallenge,
   validateStatusUpdate,
+  generateInviteCode,
+  joinByInviteCode,
+  validateGenerateInvite,
 };

@@ -1,9 +1,11 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const { prisma } = require("../config/prisma");
-const { generateToken } = require("../utils/jwt");
+const { config } = require("../config/env");
+const { generateToken, decodeToken } = require("../utils/jwt");
 const { AppError } = require("../middlewares/error.middleware");
 const logger = require("../utils/logger");
-const { sendWelcomeEmail } = require("./email.service");
+const { sendWelcomeEmail, sendPasswordResetEmail } = require("./email.service");
 
 /**
  * Register a new user
@@ -156,6 +158,10 @@ const updateProfile = async (userId, updateData) => {
       where: { id: userId },
     });
 
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
       user.password
@@ -210,9 +216,177 @@ const updateProfile = async (userId, updateData) => {
   return updatedUser;
 };
 
+/**
+<<<<<<< HEAD
+ * Request password reset email
+ * @param {string} email - User email
+ * @returns {Object} Generic response
+ */
+const forgotPassword = async (email) => {
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+    },
+  });
+
+  if (!user) {
+    logger.info(`Password reset requested for non-existent email: ${email}`);
+    return {
+      message:
+        "If an account with that email exists, a password reset link has been sent.",
+    };
+  }
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiryDate = new Date(
+    Date.now() + config.passwordResetTokenExpiryMinutes * 60 * 1000
+  );
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordResetTokenHash: tokenHash,
+      passwordResetTokenExpiry: expiryDate,
+    },
+  });
+
+  const resetLink = `${config.appBaseUrl}/reset-password?token=${rawToken}`;
+
+  const emailResult = await sendPasswordResetEmail(
+    user.email,
+    user.username,
+    resetLink,
+    config.passwordResetTokenExpiryMinutes
+  );
+
+  if (!emailResult.success) {
+    logger.error(
+      `Password reset email failed for ${user.email}: ${emailResult.reason}`
+    );
+  }
+
+  return {
+    message:
+      "If an account with that email exists, a password reset link has been sent.",
+  };
+};
+
+/**
+ * Reset user password using token
+ * @param {string} token - Raw reset token
+ * @param {string} newPassword - New password
+ * @returns {Object} Success message
+ */
+const resetPassword = async (token, newPassword) => {
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await prisma.user.findFirst({
+    where: {
+      passwordResetTokenHash: tokenHash,
+      passwordResetTokenExpiry: {
+        gt: new Date(),
+      },
+    },
+    select: {
+      id: true,
+      username: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError("Invalid or expired reset token", 400);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      password: hashedPassword,
+      passwordResetTokenHash: null,
+      passwordResetTokenExpiry: null,
+    },
+  });
+
+  logger.info(`Password reset successful for user: ${user.username}`);
+
+  return {
+    message: "Password reset successful",
+  };
+};
+
+/**
+ * Blacklist a JWT token
+ * @param {string} token - JWT token to blacklist
+ * @param {string} userId - User ID for ownership verification
+ * @throws {Error} If token is invalid or cannot be decoded
+ */
+const blacklistToken = async (token, userId) => {
+  try {
+    // Decode token to get expiry time
+    const decoded = decodeToken(token);
+
+    if (!decoded || !decoded.exp) {
+      throw new AppError("Invalid token", 400);
+    }
+
+    // Verify token ownership - ensure user can only blacklist their own tokens
+    if (decoded.userId !== userId) {
+      throw new AppError("Token ownership mismatch", 403);
+    }
+
+    // Convert Unix timestamp (seconds) to milliseconds and then to Date
+    const expiresAt = new Date(decoded.exp * 1000);
+
+    // Add token to blacklist using upsert for idempotent logout
+    await prisma.tokenBlacklist.upsert({
+      where: { token },
+      update: {}, // No update needed if already exists
+      create: {
+        token,
+        expiresAt,
+      },
+    });
+
+    logger.info(`Token blacklisted for user: ${decoded.userId}`);
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    logger.error(`Error blacklisting token: ${error.message}`);
+    throw new AppError("Failed to logout", 500);
+  }
+};
+
+/**
+ * Check if a token is blacklisted
+ * @param {string} token - JWT token to check
+ * @returns {boolean} True if token is blacklisted, false otherwise
+ */
+const isTokenBlacklisted = async (token) => {
+  try {
+    const blacklistedToken = await prisma.tokenBlacklist.findUnique({
+      where: { token },
+    });
+
+    return !!blacklistedToken;
+  } catch (error) {
+    logger.error(`Error checking token blacklist: ${error.message}`);
+    return false;
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
   updateProfile,
+  forgotPassword,
+  resetPassword,
+  blacklistToken,
+  isTokenBlacklisted,
 };

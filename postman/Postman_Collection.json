@@ -1,0 +1,618 @@
+{
+  "info": {
+    "name": "CodeDuel LeetCode Challenge Tracker API",
+    "description": "Complete API collection for the CodeDuel - LeetCode Daily Challenge Tracker backend\n\n**QUICK START GUIDE:**\n1. Start by running the seed script: `npm run seed` or `npx prisma db seed`\n2. Test Health endpoint (no auth required)\n3. Register or Login to get JWT token\n4. Use token for other endpoints\n5. Create challenges, join challenges, view dashboards\n\n**SAMPLE TEST CREDENTIALS** (from seed):\n- johndoe / password123\n- janesmith / password123\n- bobwilson / password123\n- alicejohnson / password123\n- charliebrown / password123\n\n**VARIABLES:**\n- {{base_url}}: Server base URL (default: http://localhost:3000)\n- {{jwt_token}}: JWT token (auto-saved after login)\n- {{user_id}}: Current user ID\n- {{challenge_id}}: Challenge ID for testing\n- {{member_id}}: Challenge member ID",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "challenge_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "member_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Server Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has success message', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register New User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response has JWT token', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('token');",
+                  "    pm.environment.set('jwt_token', jsonData.data.token);",
+                  "    pm.environment.set('user_id', jsonData.data.user.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"username\": \"testuser\",\n  \"password\": \"password123\",\n  \"leetcodeUsername\": \"test_user\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login with Seed User",
+          "description": "Login using credentials from seed data: johndoe / password123",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has JWT token', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('token');",
+                  "    pm.environment.set('jwt_token', jsonData.data.token);",
+                  "    pm.environment.set('user_id', jsonData.data.user.id);",
+                  "    console.log('✅ JWT Token saved');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailOrUsername\": \"johndoe\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile (LeetCode Username)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leetcodeUsername\": \"updated_john_doe_username\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile (Password)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🎯 Challenges",
+      "item": [
+        {
+          "name": "Create New Challenge",
+          "description": "Create a new challenge. Data matches seed data structure.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response has challenge data', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.environment.set('challenge_id', jsonData.data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Advanced Algorithms Challenge\",\n  \"description\": \"Master advanced algorithmic concepts through daily problem solving\",\n  \"minSubmissionsPerDay\": 2,\n  \"difficultyFilter\": [\"Medium\", \"Hard\"],\n  \"uniqueProblemConstraint\": true,\n  \"penaltyAmount\": 10,\n  \"visibility\": \"PUBLIC\",\n  \"startDate\": \"2026-02-26T00:00:00Z\",\n  \"endDate\": \"2026-03-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/challenges",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All User Challenges",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is an array', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/challenges",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Challenge by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has challenge details', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('name');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/challenges/{{challenge_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "{{challenge_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Join Challenge",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has membership data', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.environment.set('member_id', jsonData.data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/challenges/{{challenge_id}}/join",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "{{challenge_id}}", "join"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Challenge Status to ACTIVE",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/challenges/{{challenge_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "{{challenge_id}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Challenge Status to COMPLETED",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/challenges/{{challenge_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "challenges", "{{challenge_id}}", "status"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Overview",
+          "description": "Get comprehensive dashboard data with all active challenges and stats",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has dashboard data', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('activeChallenges');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Today's Status",
+          "description": "Get today's completion status across all active challenges",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/today",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "today"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Challenge Progress",
+          "description": "Get detailed progress for a specific challenge including daily results and members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/challenge/{{challenge_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "challenge", "{{challenge_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Challenge Leaderboard",
+          "description": "Get leaderboard for a specific challenge with member rankings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/challenge/{{challenge_id}}/leaderboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "challenge", "{{challenge_id}}", "leaderboard"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Activity Heatmap",
+          "description": "Get user's activity heatmap data for the last 365 days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/activity-heatmap",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "activity-heatmap"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Stats",
+          "description": "Get user's comprehensive stats including streaks and totals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Submission Chart",
+          "description": "Get user's submission chart data for the last 30 days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/submission-chart",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "submission-chart"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💻 LeetCode Integration",
+      "item": [
+        {
+          "name": "Get LeetCode User Profile",
+          "description": "Fetch a user's profile and solved problem statistics from LeetCode (using sample username from seed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/profile/john_doe",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "profile", "john_doe"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test LeetCode Connection",
+          "description": "Test connectivity with LeetCode API using a sample username",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/test/john_doe",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "test", "john_doe"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Problem Metadata - Two Sum",
+          "description": "Get metadata for the 'Two Sum' problem (ID: 1, Easy difficulty)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/problem/two-sum",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "problem", "two-sum"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Problem Metadata - Add Two Numbers",
+          "description": "Get metadata for the 'Add Two Numbers' problem (ID: 2, Medium difficulty)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/problem/add-two-numbers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "problem", "add-two-numbers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Problem Metadata - Longest Substring",
+          "description": "Get metadata for 'Longest Substring Without Repeating Characters' (ID: 3, Medium difficulty)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/leetcode/problem/longest-substring-without-repeating-characters",
+              "host": ["{{base_url}}"],
+              "path": ["api", "leetcode", "problem", "longest-substring-without-repeating-characters"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

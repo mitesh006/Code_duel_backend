@@ -8,7 +8,9 @@
     "dev": "nodemon src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "seed": "node prisma/seed.js",
+    "db:seed": "prisma db seed"
   },
   "keywords": [
     "leetcode",
@@ -40,5 +42,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

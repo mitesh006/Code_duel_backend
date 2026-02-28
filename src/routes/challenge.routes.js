@@ -16,6 +16,17 @@ router.post(
 );
 
 /**
+ * @route   POST /api/challenges/join-by-code
+ * @desc    Join a challenge using an invite code
+ * @access  Private
+ */
+router.post(
+  "/join-by-code",
+  authenticate,
+  challengeController.joinByInviteCode
+);
+
+/**
  * @route   GET /api/challenges
  * @desc    Get all challenges for current user
  * @access  Private
@@ -35,6 +46,18 @@ router.get("/:id", authenticate, challengeController.getChallengeById);
  * @access  Private
  */
 router.post("/:id/join", authenticate, challengeController.joinChallenge);
+
+/**
+ * @route   POST /api/challenges/:id/invite
+ * @desc    Generate an invite code for a challenge (owner only)
+ * @access  Private
+ */
+router.post(
+  "/:id/invite",
+  authenticate,
+  challengeController.validateGenerateInvite,
+  challengeController.generateInviteCode
+);
 
 /**
  * @route   PATCH /api/challenges/:id/status
