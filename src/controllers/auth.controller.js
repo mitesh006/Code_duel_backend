@@ -36,7 +36,7 @@ const validateLogin = [
 ];
 
 /**
-<<<<<<< HEAD
+
  * Validation middleware for forgot password
  */
 const validateForgotPassword = [
@@ -54,7 +54,8 @@ const validateResetPassword = [
   body("newPassword")
     .isLength({ min: 6 })
     .withMessage("New password must be at least 6 characters"),
-=======
+
+/**
  * Validation middleware for profile update
  */
 const validateUpdateProfile = [
@@ -72,8 +73,28 @@ const validateUpdateProfile = [
     .if(body("newPassword").exists({ checkFalsy: true }))
     .notEmpty()
     .withMessage("Current password is required when setting a new password"),
->>>>>>> c52549d (fix/profile-validation-null-safety)
 ];
+
+/**
+ * Validation middleware for forgot password
+ */
+const validateForgotPassword = [
+  body("email")
+    .isEmail()
+    .normalizeEmail()
+    .withMessage("Valid email is required"),
+];
+
+/**
+ * Validation middleware for reset password
+ */
+const validateResetPassword = [
+  body("token").notEmpty().withMessage("Reset token is required"),
+  body("newPassword")
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+];
+
 
 /**
  * Register a new user
@@ -226,14 +247,17 @@ module.exports = {
   login,
   getProfile,
   updateProfile,
+
   validateRegister,
   validateLogin,
-<<<<<<< HEAD
+
   forgotPassword,
   resetPassword,
+  validateRegister,
+  validateLogin,
   validateForgotPassword,
   validateResetPassword,
-=======
   validateUpdateProfile,
->>>>>>> c52549d (fix/profile-validation-null-safety)
+
 };
+

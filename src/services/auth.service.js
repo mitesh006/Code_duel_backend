@@ -317,6 +317,6 @@ module.exports = {
 
   forgotPassword,
   resetPassword,
-  
+
 };
 
