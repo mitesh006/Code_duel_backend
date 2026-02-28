@@ -5,7 +5,11 @@ const responseTime = require("response-time");
 const { config } = require("./config/env");
 const { errorHandler, notFound } = require("./middlewares/error.middleware");
 const logger = require("./utils/logger");
+
+const adminRoutes = require("./routes/admin.routes");
+
 const requestLogger = require("./middlewares/requestLogger");
+
 
 // Import routes
 const authRoutes = require("./routes/auth.routes");
@@ -26,7 +30,7 @@ const createApp = () => {
   
   // Apply strict limiting specifically to auth routes
   app.use('/api/auth/', authLimiter);
-
+  app.use("/api/admin", adminRoutes);
   // 2. CORS configuration
   app.use(
     cors({
