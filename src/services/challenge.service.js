@@ -1,6 +1,7 @@
 const { prisma } = require("../config/prisma");
 const { AppError } = require("../middlewares/error.middleware");
 const logger = require("../utils/logger");
+const { logAudit } = require("../utils/auditLogger");
 
 /**
  * Create a new challenge
@@ -94,6 +95,8 @@ const createChallenge = async (userId, challengeData) => {
   logger.info(
     `Challenge created: ${challenge.name} by ${challenge.owner.username} (${challengeVisibility})`
   );
+
+  await logAudit("CHALLENGE_CREATED", userId, { challengeId: challenge.id, challengeName: challenge.name });
 
   return challenge;
 };
@@ -222,6 +225,8 @@ const joinChallenge = async (userId, challengeId) => {
     `User ${membership.user.username} joined challenge: ${membership.challenge.name}`
   );
 
+  await logAudit("CHALLENGE_JOINED", userId, { challengeId, challengeName: membership.challenge.name });
+
   return membership;
 };
 
@@ -349,6 +354,8 @@ const updateChallengeStatus = async (challengeId, userId, newStatus) => {
   });
 
   logger.info(`Challenge ${challenge.name} status updated to ${newStatus}`);
+
+  await logAudit("CHALLENGE_STATUS_UPDATED", userId, { challengeId, oldStatus: challenge.status, newStatus });
 
   return updatedChallenge;
 };

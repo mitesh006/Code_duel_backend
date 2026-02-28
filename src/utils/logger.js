@@ -22,6 +22,7 @@ const level = config.nodeEnv === "production" ? "info" : "debug";
 const logger = winston.createLogger({
   level,
   format: logFormat,
+  levels: winston.config.npm.levels,
   transports: [
     // Console transport
     new winston.transports.Console({
