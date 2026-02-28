@@ -12,6 +12,48 @@ A production-ready backend application for tracking LeetCode daily challenges wi
 - **Penalty System**: Virtual penalty tracking for missed days
 - **Dashboard**: Comprehensive progress overview and leaderboards
 - **Clean Architecture**: Service-based structure with separation of concerns
+- **🔒 Security Features**: Centralized input sanitization and validation (see [SECURITY.md](SECURITY.md))
+
+## 🔒 Security Features
+
+This application implements comprehensive security measures to protect against common web vulnerabilities:
+
+### Protected Against
+
+✅ **Cross-Site Scripting (XSS)** - Script tag removal and protocol validation  
+✅ **HTML/Script Injection** - Event handler stripping and tag sanitization  
+✅ **Path Traversal** - Directory traversal detection and blocking  
+✅ **Malicious Protocol Injection** - JavaScript/data protocol blocking  
+✅ **Control Character Injection** - Null byte and control character removal  
+✅ **DoS via Large Inputs** - Request size limits and length enforcement  
+✅ **SQL Injection Detection** - Pattern detection and logging
+
+### Security Implementation
+
+- **Centralized Sanitization Utility** ([src/utils/sanitizer.js](src/utils/sanitizer.js))
+  - Specialized sanitizers for email, username, URL, filename, JSON
+  - Security threat detection and scanning
+  - Configurable length limits (10KB-100KB)
+
+- **Global Security Middleware** ([src/middlewares/sanitization.middleware.js](src/middlewares/sanitization.middleware.js))
+  - Automatic input sanitization for body, query, and params
+  - Real-time security scanning with threat blocking
+  - Request payload size enforcement (100KB limit)
+
+- **Controller-Level Field Sanitization**
+  - Field-specific validation rules
+  - Type-safe sanitization
+  - Express-validator integration
+
+### Testing Security
+
+Run the security test suite:
+
+```bash
+node test-sanitization.js
+```
+
+For detailed security documentation, see **[SECURITY.md](SECURITY.md)**
 
 ## 🛠️ Tech Stack
 
@@ -48,6 +90,21 @@ src/
  │    ├── auth.service.js        # Authentication business logic
  │    ├── challenge.service.js   # Challenge business logic
  │    ├── leetcode.service.js    # LeetCode API integration
+ │    ├── penalty.service.js     # Penalty management
+ │    └── evaluation.service.js  # Daily evaluation logic
+ ├── middlewares/
+ │    ├── auth.middleware.js     # JWT authentication
+ │    ├── error.middleware.js    # Error handling
+ │    ├── rateLimiter.middleware.js # Rate limiting
+ │    └── sanitization.middleware.js # 🔒 Input sanitization
+ ├── utils/
+ │    ├── jwt.js                 # JWT utilities
+ │    ├── encryption.js          # Encryption utilities
+ │    ├── logger.js              # Winston logger
+ │    └── sanitizer.js           # 🔒 Security sanitizer
+ └── prisma/
+      └── schema.prisma          # Database schema
+```
  │    ├── penalty.service.js     # Penalty management
  │    └── evaluation.service.js  # Daily evaluation logic
  ├── middlewares/

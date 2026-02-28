@@ -1,11 +1,19 @@
 const authService = require("../services/auth.service");
 const { asyncHandler } = require("../middlewares/error.middleware");
 const { body, validationResult } = require("express-validator");
+const { sanitizeFields } = require("../middlewares/sanitization.middleware");
 
 /**
  * Validation middleware for registration
  */
 const validateRegister = [
+  // Sanitize fields before validation
+  sanitizeFields({
+    email: { type: "email", required: true },
+    username: { type: "username", required: true },
+    password: { type: "password", required: true },
+    leetcodeUsername: { type: "username", required: false },
+  }),
   body("email")
     .isEmail()
     .normalizeEmail()
@@ -29,6 +37,15 @@ const validateRegister = [
  * Validation middleware for login
  */
 const validateLogin = [
+  // Sanitize fields before validation
+  sanitizeFields({
+    emailOrUsername: {
+      type: "string",
+      required: true,
+      options: { maxLength: 254 },
+    },
+    password: { type: "password", required: true },
+  }),
   body("emailOrUsername")
     .notEmpty()
     .withMessage("Email or username is required"),
@@ -165,6 +182,29 @@ const getProfile = asyncHandler(async (req, res) => {
     data: user,
   });
 });
+
+/**
+ * Validation middleware for profile update
+ */
+const validateUpdateProfile = [
+  sanitizeFields({
+    leetcodeUsername: { type: "username", required: false },
+    currentPassword: { type: "password", required: false },
+    newPassword: { type: "password", required: false },
+  }),
+  body("leetcodeUsername")
+    .optional()
+    .isLength({ min: 1, max: 50 })
+    .withMessage("LeetCode username must be 1-50 characters"),
+  body("currentPassword")
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage("Current password must be at least 6 characters"),
+  body("newPassword")
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+];
 
 /**
  * Update user profile
