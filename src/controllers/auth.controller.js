@@ -2,11 +2,6 @@ const authService = require("../services/auth.service");
 const { asyncHandler } = require("../middlewares/error.middleware");
 const { body, validationResult } = require("express-validator");
 const { sanitizeFields } = require("../middlewares/sanitization.middleware");
-const {
-  sanitizeEmail,
-  sanitizeUsername,
-  sanitizePassword,
-} = require("../utils/sanitizer");
 
 /**
  * Validation middleware for registration
@@ -76,47 +71,6 @@ const validateResetPassword = [
     .isLength({ min: 6 })
     .withMessage("New password must be at least 6 characters"),
 ];
-
-/**
- * Validation middleware for profile update
- */
-const validateUpdateProfile = [
-  body("leetcodeUsername")
-    .optional({ nullable: true })
-    .isString()
-    .isLength({ min: 1, max: 50 })
-    .withMessage("LeetCode username must be 1-50 characters"),
-  body("newPassword")
-    .optional()
-    .isString()
-    .isLength({ min: 6 })
-    .withMessage("New password must be at least 6 characters"),
-  body("currentPassword")
-    .if(body("newPassword").exists({ checkFalsy: true }))
-    .notEmpty()
-    .withMessage("Current password is required when setting a new password"),
-];
-
-/**
- * Validation middleware for forgot password
- */
-const validateForgotPassword = [
-  body("email")
-    .isEmail()
-    .normalizeEmail()
-    .withMessage("Valid email is required"),
-];
-
-/**
- * Validation middleware for reset password
- */
-const validateResetPassword = [
-  body("token").notEmpty().withMessage("Reset token is required"),
-  body("newPassword")
-    .isLength({ min: 6 })
-    .withMessage("New password must be at least 6 characters"),
-];
-
 
 /**
  * Register a new user
