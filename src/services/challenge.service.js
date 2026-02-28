@@ -170,6 +170,11 @@ const joinChallenge = async (userId, challengeId) => {
     throw new AppError("Challenge not found", 404);
   }
 
+  // Check if challenge is PRIVATE
+  if (challenge.visibility === "PRIVATE") {
+    throw new AppError("Cannot join a private challenge. Private challenges require an invitation.", 403);
+  }
+
   // Check if challenge has started
   if (challenge.status === "COMPLETED" || challenge.status === "CANCELLED") {
     throw new AppError("Cannot join a completed or cancelled challenge", 400);
