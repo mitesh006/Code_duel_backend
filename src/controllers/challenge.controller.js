@@ -1,11 +1,58 @@
 const challengeService = require("../services/challenge.service");
 const { asyncHandler } = require("../middlewares/error.middleware");
 const { body, validationResult } = require("express-validator");
+const { sanitizeFields } = require("../middlewares/sanitization.middleware");
+const { sanitizeString } = require("../utils/sanitizer");
 
 /**
  * Validation middleware for creating challenge
  */
 const validateCreateChallenge = [
+  // Sanitize fields before validation
+  sanitizeFields({
+    name: {
+      type: "string",
+      required: true,
+      options: { maxLength: 100 },
+    },
+    description: {
+      type: "text",
+      required: false,
+      options: { maxLength: 500 },
+    },
+    minSubmissionsPerDay: {
+      type: "number",
+      required: false,
+    },
+    difficultyFilter: {
+      type: "array",
+      required: true,
+      itemType: "string",
+    },
+    uniqueProblemConstraint: {
+      type: "boolean",
+      required: false,
+    },
+    penaltyAmount: {
+      type: "number",
+      required: false,
+    },
+    visibility: {
+      type: "string",
+      required: false,
+      options: { maxLength: 20 },
+    },
+    startDate: {
+      type: "string",
+      required: true,
+      options: { maxLength: 50 },
+    },
+    endDate: {
+      type: "string",
+      required: true,
+      options: { maxLength: 50 },
+    },
+  }),
   body("name")
     .isLength({ min: 3, max: 100 })
     .withMessage("Challenge name must be 3-100 characters"),
@@ -120,6 +167,19 @@ const getUserChallenges = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Validation middleware for status update
+ */
+const validateStatusUpdate = [
+  sanitizeFields({
+    status: {
+      type: "string",
+      required: true,
+      options: { maxLength: 20 },
+    },
+  }),
+];
+
+/**
  * Update challenge status
  * PATCH /api/challenges/:id/status
  */
@@ -220,6 +280,7 @@ module.exports = {
   getUserChallenges,
   updateChallengeStatus,
   validateCreateChallenge,
+  validateStatusUpdate,
   generateInviteCode,
   joinByInviteCode,
   validateGenerateInvite,

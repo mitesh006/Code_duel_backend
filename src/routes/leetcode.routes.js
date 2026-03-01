@@ -12,6 +12,12 @@ router.get(
 router.get("/test/:username", authenticate, leetcodeController.testConnection);
 
 router.get(
+  "/submissions/:username",
+  authenticate,
+  leetcodeController.getSubmissionsForDate
+);
+
+router.get(
   "/problem/:titleSlug",
   authenticate,
   leetcodeController.getProblemMetadata

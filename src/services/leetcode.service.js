@@ -1,7 +1,7 @@
-const axios = require("axios");
 const { config } = require("../config/env");
 const { prisma } = require("../config/prisma");
 const logger = require("../utils/logger");
+const { leetcodeApiRequest } = require("./leetcodeApiClient");
 
 // LeetCode GraphQL API endpoint
 const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql/";
@@ -104,19 +104,12 @@ const fetchUserSubmissions = async (leetcodeUsername) => {
     const submissionLimit = config.leetcodeSubmissionFetchLimit || 100;
 
     // Fetch recent submissions
-    const response = await axios.post(
-      config.leetcodeGraphqlUrl,
-      {
-        query: RECENT_SUBMISSIONS_QUERY,
-        variables: {
-          username: leetcodeUsername,
-          limit: submissionLimit,
-        },
-      },
-      { headers, timeout: 10000 }
-    );
+    const response = await leetcodeApiRequest(RECENT_SUBMISSIONS_QUERY, {
+      username: leetcodeUsername,
+      limit: submissionLimit,
+    });
 
-    if (!response.data || !response.data.data) {
+    if (!response || !response.data) {
       logger.warn(`No data returned for user: ${leetcodeUsername}`);
       return [];
     }
@@ -124,7 +117,7 @@ const fetchUserSubmissions = async (leetcodeUsername) => {
     const submissions = response.data.data.recentAcSubmissionList || [];
 
     logger.debug(
-      `Fetched ${submissions.length} submissions for ${leetcodeUsername}`
+      `Fetched ${submissions.length} submissions for ${leetcodeUsername}`,
     );
 
     return submissions;
@@ -167,15 +160,24 @@ const parseSubmissions = async (submissions) => {
 };
 
 /**
-/**
  * Fetch submissions for a specific date (helper function)
  * @param {string} leetcodeUsername - LeetCode username
  * @param {Date} date - Date to fetch submissions for
  * @returns {Array} Submissions for the date
  */
 const fetchSubmissionsForDate = async (leetcodeUsername, date) => {
+  const submissions = await fetchUserSubmissions(leetcodeUsername);
 
-  return await fetchUserSubmissions(leetcodeUsername);
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const nextDate = new Date(targetDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+
+  return submissions.filter((submission) => {
+    const submissionDate = new Date(parseInt(submission.timestamp, 10) * 1000);
+    return submissionDate >= targetDate && submissionDate < nextDate;
+  });
 };
 
 /**
@@ -186,41 +188,28 @@ const fetchSubmissionsForDate = async (leetcodeUsername, date) => {
  */
 const fetchLeetCodeData = async (query, variables) => {
   try {
-    // Prepare headers
-    const headers = {
-      "Content-Type": "application/json",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      Referer: "https://leetcode.com/",
-      Origin: "https://leetcode.com",
-    };
-
-    // Make GraphQL request
-    const response = await axios.post(
-      config.leetcodeGraphqlUrl || "https://leetcode.com/graphql/",
-      { query, variables },
-      { headers, timeout: 15000 }
-    );
+    // Make GraphQL request using rate-limited client
+    const response = await leetcodeApiRequest(query, variables);
 
     // Check for GraphQL errors
-    if (response.data.errors) {
-      logger.error("GraphQL errors:", response.data.errors);
-      throw new Error(`GraphQL Error: ${response.data.errors[0].message}`);
+    if (response.errors) {
+      logger.error("GraphQL errors:", response.errors);
+      throw new Error(`GraphQL Error: ${response.errors[0].message}`);
     }
 
-    if (!response.data || !response.data.data) {
+    if (!response || !response.data) {
       logger.warn("No data returned from LeetCode GraphQL");
       return null;
     }
 
-    return response.data.data;
+    return response.data;
   } catch (error) {
     // Enhanced error handling
     if (error.response) {
       const status = error.response.status;
       if (status === 429) {
         throw new Error("Rate limit exceeded. Please try again later.");
-      }else if (status === 404) {
+      } else if (status === 404) {
         throw new Error("Resource not found.");
       }
     }
@@ -264,10 +253,7 @@ const fetchProblemMetadata = async (titleSlug) => {
     // Fetch from LeetCode API
     logger.debug(`Fetching fresh metadata for problem: ${titleSlug}`);
 
-    const data = await fetchLeetCodeData(
-      PROBLEM_DETAILS_QUERY,
-      { titleSlug }
-    );
+    const data = await fetchLeetCodeData(PROBLEM_DETAILS_QUERY, { titleSlug });
 
     if (!data || !data.question) {
       logger.warn(`No problem data found for: ${titleSlug}`);
@@ -303,7 +289,7 @@ const fetchProblemMetadata = async (titleSlug) => {
     });
 
     logger.info(
-      `Cached metadata for problem: ${titleSlug} (${problem.difficulty})`
+      `Cached metadata for problem: ${titleSlug} (${problem.difficulty})`,
     );
 
     return savedMetadata;
@@ -324,9 +310,7 @@ const enrichSubmissionsWithMetadata = async (submissions) => {
 
   for (const submission of submissions) {
     try {
-      const metadata = await fetchProblemMetadata(
-        submission.titleSlug
-      );
+      const metadata = await fetchProblemMetadata(submission.titleSlug);
 
       enrichedSubmissions.push({
         id: submission.id,
@@ -343,7 +327,7 @@ const enrichSubmissionsWithMetadata = async (submissions) => {
     } catch (error) {
       logger.warn(
         `Failed to enrich submission ${submission.titleSlug}:`,
-        error.message
+        error.message,
       );
       enrichedSubmissions.push({
         id: submission.id,
@@ -370,10 +354,10 @@ const enrichSubmissionsWithMetadata = async (submissions) => {
 const fetchUserProfile = async (username) => {
   try {
     const currentYear = new Date().getFullYear();
-    const data = await fetchLeetCodeData(
-      USER_CALENDAR_QUERY,
-      { username, year: currentYear }
-    );
+    const data = await fetchLeetCodeData(USER_CALENDAR_QUERY, {
+      username,
+      year: currentYear,
+    });
 
     if (!data || !data.matchedUser) {
       throw new Error("User not found");

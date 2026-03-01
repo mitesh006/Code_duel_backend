@@ -1,6 +1,7 @@
 const { prisma } = require("../config/prisma");
 const { AppError } = require("../middlewares/error.middleware");
 const logger = require("../utils/logger");
+const { logAudit } = require("../utils/auditLogger");
 
 /**
  * Create a new challenge
@@ -26,8 +27,13 @@ const createChallenge = async (userId, challengeData) => {
   const end = new Date(endDate);
   const now = new Date();
 
-  if (start < now) {
-    throw new AppError("Start date must be in the future", 400);
+  // Compare dates at day level, not millisecond level
+  // Set time to start of day for comparison
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfStartDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+
+  if (startOfStartDate < startOfToday) {
+    throw new AppError("Start date must be today or in the future", 400);
   }
 
   if (end <= start) {
@@ -94,6 +100,8 @@ const createChallenge = async (userId, challengeData) => {
   logger.info(
     `Challenge created: ${challenge.name} by ${challenge.owner.username} (${challengeVisibility})`
   );
+
+  await logAudit("CHALLENGE_CREATED", userId, { challengeId: challenge.id, challengeName: challenge.name });
 
   return challenge;
 };
@@ -170,6 +178,11 @@ const joinChallenge = async (userId, challengeId) => {
     throw new AppError("Challenge not found", 404);
   }
 
+  // Check if challenge is PRIVATE
+  if (challenge.visibility === "PRIVATE") {
+    throw new AppError("Cannot join a private challenge. Private challenges require an invitation.", 403);
+  }
+
   // Check if challenge has started
   if (challenge.status === "COMPLETED" || challenge.status === "CANCELLED") {
     throw new AppError("Cannot join a completed or cancelled challenge", 400);
@@ -216,6 +229,8 @@ const joinChallenge = async (userId, challengeId) => {
   logger.info(
     `User ${membership.user.username} joined challenge: ${membership.challenge.name}`
   );
+
+  await logAudit("CHALLENGE_JOINED", userId, { challengeId, challengeName: membership.challenge.name });
 
   return membership;
 };
@@ -344,6 +359,8 @@ const updateChallengeStatus = async (challengeId, userId, newStatus) => {
   });
 
   logger.info(`Challenge ${challenge.name} status updated to ${newStatus}`);
+
+  await logAudit("CHALLENGE_STATUS_UPDATED", userId, { challengeId, oldStatus: challenge.status, newStatus });
 
   return updatedChallenge;
 };

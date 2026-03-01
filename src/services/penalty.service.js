@@ -148,8 +148,7 @@ const adjustPenalty = async (penaltyId, adjustmentAmount) => {
     where: { id: penalty.memberId },
     data: {
       totalPenalties: {
-        decrement: penalty.amount,
-        increment: adjustmentAmount,
+        increment: adjustmentAmount - penalty.amount,
       },
     },
   });

@@ -67,6 +67,7 @@ router.post(
 router.patch(
   "/:id/status",
   authenticate,
+  challengeController.validateStatusUpdate,
   challengeController.updateChallengeStatus
 );
 

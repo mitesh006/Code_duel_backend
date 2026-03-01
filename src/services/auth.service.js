@@ -2,15 +2,13 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { prisma } = require("../config/prisma");
 const { config } = require("../config/env");
-const { generateToken } = require("../utils/jwt");
+const { generateToken, decodeToken } = require("../utils/jwt");
 const { AppError } = require("../middlewares/error.middleware");
 const logger = require("../utils/logger");
 const { sendWelcomeEmail, sendVerificationEmail } = require("./email.service");
 const crypto = require('crypto');
 /**
  * Register a new user
- * @param {Object} userData - User registration data
- * @returns {Object} User object and JWT token
  */
 const register = async (userData) => {
   const { email, username, password, leetcodeUsername } = userData;
@@ -46,13 +44,6 @@ const register = async (userData) => {
       isEmailVerified: false,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: tokenExpiry,
-    },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      leetcodeUsername: true,
-      createdAt: true,
     },
   });
 
@@ -106,12 +97,9 @@ const verifyEmail = async (token) => {
 
 /**
  * Login user
- * @param {string} emailOrUsername - Email or username
- * @param {string} password - User password
- * @returns {Object} User object and JWT token
  */
 const login = async (emailOrUsername, password) => {
-  // Find user by email or username
+  // Find user by email OR username
   const user = await prisma.user.findFirst({
     where: {
       OR: [{ email: emailOrUsername }, { username: emailOrUsername }],
@@ -122,7 +110,7 @@ const login = async (emailOrUsername, password) => {
     throw new AppError("Invalid credentials", 401);
   }
 
-  // Verify password
+  // Compare password
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
@@ -141,6 +129,8 @@ const login = async (emailOrUsername, password) => {
 
   logger.info(`User logged in: ${user.username}`);
 
+  await logAudit("USER_LOGIN", user.id, { username: user.username });
+
   return {
     user: {
       id: user.id,
@@ -155,8 +145,6 @@ const login = async (emailOrUsername, password) => {
 
 /**
  * Get user profile
- * @param {string} userId - User ID
- * @returns {Object} User profile
  */
 const getProfile = async (userId) => {
   const user = await prisma.user.findUnique({
@@ -185,14 +173,11 @@ const getProfile = async (userId) => {
 
 /**
  * Update user profile
- * @param {string} userId - User ID
- * @param {Object} updateData - Data to update
- * @returns {Object} Updated user profile
  */
 const updateProfile = async (userId, updateData) => {
   const { leetcodeUsername, currentPassword, newPassword } = updateData;
 
-  // If changing password, verify current password
+  // If password change requested
   if (newPassword) {
     if (!currentPassword) {
       throw new AppError("Current password is required", 400);
@@ -208,14 +193,13 @@ const updateProfile = async (userId, updateData) => {
 
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
-      user.password
+      user.password,
     );
 
     if (!isPasswordValid) {
       throw new AppError("Current password is incorrect", 401);
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     const updatedUser = await prisma.user.update({
@@ -225,18 +209,21 @@ const updateProfile = async (userId, updateData) => {
         leetcodeUsername:
           leetcodeUsername !== undefined ? leetcodeUsername : undefined,
       },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        leetcodeUsername: true,
-        updatedAt: true,
-      },
     });
 
     logger.info(`User profile updated: ${updatedUser.username}`);
 
-    return updatedUser;
+    await logAudit("PASSWORD_CHANGED", userId, {
+      username: updatedUser.username,
+    });
+
+    return {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      username: updatedUser.username,
+      leetcodeUsername: updatedUser.leetcodeUsername,
+      updatedAt: updatedUser.updatedAt,
+    };
   }
 
   // Update without password change
@@ -246,18 +233,17 @@ const updateProfile = async (userId, updateData) => {
       leetcodeUsername:
         leetcodeUsername !== undefined ? leetcodeUsername : undefined,
     },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      leetcodeUsername: true,
-      updatedAt: true,
-    },
   });
 
   logger.info(`User profile updated: ${updatedUser.username}`);
 
-  return updatedUser;
+  return {
+    id: updatedUser.id,
+    email: updatedUser.email,
+    username: updatedUser.username,
+    leetcodeUsername: updatedUser.leetcodeUsername,
+    updatedAt: updatedUser.updatedAt,
+  };
 };
 
 /**
@@ -286,7 +272,7 @@ const forgotPassword = async (email) => {
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const expiryDate = new Date(
-    Date.now() + config.passwordResetTokenExpiryMinutes * 60 * 1000
+    Date.now() + config.passwordResetTokenExpiryMinutes * 60 * 1000,
   );
 
   await prisma.user.update({
@@ -303,12 +289,12 @@ const forgotPassword = async (email) => {
     user.email,
     user.username,
     resetLink,
-    config.passwordResetTokenExpiryMinutes
+    config.passwordResetTokenExpiryMinutes,
   );
 
   if (!emailResult.success) {
     logger.error(
-      `Password reset email failed for ${user.email}: ${emailResult.reason}`
+      `Password reset email failed for ${user.email}: ${emailResult.reason}`,
     );
   }
 
@@ -360,6 +346,67 @@ const resetPassword = async (token, newPassword) => {
   return {
     message: "Password reset successful",
   };
+};
+
+/**
+ * Blacklist a JWT token
+ * @param {string} token - JWT token to blacklist
+ * @param {string} userId - User ID for ownership verification
+ * @throws {Error} If token is invalid or cannot be decoded
+ */
+const blacklistToken = async (token, userId) => {
+  try {
+    // Decode token to get expiry time
+    const decoded = decodeToken(token);
+
+    if (!decoded || !decoded.exp) {
+      throw new AppError("Invalid token", 400);
+    }
+
+    // Verify token ownership - ensure user can only blacklist their own tokens
+    if (decoded.userId !== userId) {
+      throw new AppError("Token ownership mismatch", 403);
+    }
+
+    // Convert Unix timestamp (seconds) to milliseconds and then to Date
+    const expiresAt = new Date(decoded.exp * 1000);
+
+    // Add token to blacklist using upsert for idempotent logout
+    await prisma.tokenBlacklist.upsert({
+      where: { token },
+      update: {}, // No update needed if already exists
+      create: {
+        token,
+        expiresAt,
+      },
+    });
+
+    logger.info(`Token blacklisted for user: ${decoded.userId}`);
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    logger.error(`Error blacklisting token: ${error.message}`);
+    throw new AppError("Failed to logout", 500);
+  }
+};
+
+/**
+ * Check if a token is blacklisted
+ * @param {string} token - JWT token to check
+ * @returns {boolean} True if token is blacklisted, false otherwise
+ */
+const isTokenBlacklisted = async (token) => {
+  try {
+    const blacklistedToken = await prisma.tokenBlacklist.findUnique({
+      where: { token },
+    });
+
+    return !!blacklistedToken;
+  } catch (error) {
+    logger.error(`Error checking token blacklist: ${error.message}`);
+    return false;
+  }
 };
 
 module.exports = {

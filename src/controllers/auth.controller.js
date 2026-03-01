@@ -1,11 +1,18 @@
 const authService = require("../services/auth.service");
 const { asyncHandler } = require("../middlewares/error.middleware");
 const { body, validationResult } = require("express-validator");
+const { sanitizeFields } = require("../middlewares/sanitization.middleware");
 
 /**
  * Validation middleware for registration
  */
 const validateRegister = [
+  sanitizeFields({
+    email: { type: "email", required: true },
+    username: { type: "username", required: true },
+    password: { type: "password", required: true },
+    leetcodeUsername: { type: "username", required: false },
+  }),
   body("email")
     .isEmail()
     .normalizeEmail()
@@ -14,7 +21,7 @@ const validateRegister = [
     .isLength({ min: 3, max: 30 })
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage(
-      "Username must be 3-30 characters and contain only letters, numbers, and underscores"
+      "Username must be 3-30 characters and contain only letters, numbers, and underscores",
     ),
   body("password")
     .isLength({ min: 6 })
@@ -29,6 +36,14 @@ const validateRegister = [
  * Validation middleware for login
  */
 const validateLogin = [
+  sanitizeFields({
+    emailOrUsername: {
+      type: "string",
+      required: true,
+      options: { maxLength: 254 },
+    },
+    password: { type: "password", required: true },
+  }),
   body("emailOrUsername")
     .notEmpty()
     .withMessage("Email or username is required"),
@@ -75,6 +90,28 @@ const validateResetPassword = [
     .withMessage("New password must be at least 6 characters"),
 ];
 
+/**
+ * Validation middleware for profile update
+ */
+const validateUpdateProfile = [
+  sanitizeFields({
+    leetcodeUsername: { type: "username", required: false },
+    currentPassword: { type: "password", required: false },
+    newPassword: { type: "password", required: false },
+  }),
+  body("leetcodeUsername")
+    .optional()
+    .isLength({ min: 1, max: 50 })
+    .withMessage("LeetCode username must be 1-50 characters"),
+  body("currentPassword")
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage("Current password must be at least 6 characters"),
+  body("newPassword")
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage("New password must be at least 6 characters"),
+];
 
 /**
  * Register a new user
@@ -93,7 +130,6 @@ const verifyEmail = asyncHandler(async (req, res) => {
 });
 
 const register = asyncHandler(async (req, res) => {
-  // Check for validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -104,7 +140,6 @@ const register = asyncHandler(async (req, res) => {
   }
 
   const { email, username, password, leetcodeUsername } = req.body;
-
   const result = await authService.register({
     email,
     username,
@@ -124,7 +159,6 @@ const register = asyncHandler(async (req, res) => {
  * POST /api/auth/login
  */
 const login = asyncHandler(async (req, res) => {
-  // Check for validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -135,7 +169,6 @@ const login = asyncHandler(async (req, res) => {
   }
 
   const { emailOrUsername, password } = req.body;
-
   const result = await authService.login(emailOrUsername, password);
 
   res.status(200).json({
@@ -163,7 +196,6 @@ const getProfile = asyncHandler(async (req, res) => {
  * PUT /api/auth/profile
  */
 const updateProfile = asyncHandler(async (req, res) => {
-  // Check for validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -174,7 +206,6 @@ const updateProfile = asyncHandler(async (req, res) => {
   }
 
   const { leetcodeUsername, currentPassword, newPassword } = req.body;
-
   const user = await authService.updateProfile(req.user.id, {
     leetcodeUsername,
     currentPassword,
@@ -234,6 +265,22 @@ const resetPassword = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Logout user and blacklist token
+ * POST /api/auth/logout
+ */
+const logout = asyncHandler(async (req, res) => {
+  const token = req.verifiedToken;
+  const userId = req.user.id;
+
+  await authService.blacklistToken(token, userId);
+
+  res.status(200).json({
+    success: true,
+    message: "Logged out successfully",
+  });
+});
+
 module.exports = {
   register,
   login,
@@ -244,9 +291,9 @@ module.exports = {
   verifyEmail,
   forgotPassword,
   resetPassword,
+  logout,
   validateRegister,
   validateLogin,
   validateForgotPassword,
   validateResetPassword,
 };
-
